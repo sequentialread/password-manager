@@ -1,54 +1,8 @@
 
-<h3>Rancher</h3>
+<div>
 
-<div ng-if="vm.displayRancherBugExplaination" class="bug-explaination">
-  <p>
-    The app recieved a blank list of projects from the Rancher API.
-  </p>
-  <p>
-    Either Rancher really does have no environments, your user doesn't have permissions to view any environments,
-    or (most likely) you have reproduced a bug in Rancher related to github authentication and the <code>v1/projects</code> API endpoint.
-  </p>
-  <p>
-    In order to fix this, please
-    <a href="{{vm.config.rancherScheme+'://'+vm.config.rancherHost}}/logout" target="_blank">Log out of Rancher</a>
-    and then log back in.
-  </p>
-  <p>
-    When you are done, you may reload this page.
-  </p>
-</div>
-<div ng-if="!vm.displayRancherBugExplaination">
-  <table class="overview table">
-    <thead>
-      <th></th>
-      <th ng-repeat="environment in vm.environments track by environment.id">
-        <span class="badge" ng-class="environment.name">
-          {{environment.name}}
-        </span>
-      </th>
-    </thead>
-    <tbody>
-      <tr ng-repeat="row in vm.rows track by row.fullName"
-          ng-class="row.isService ? 'service' : ''"
-          ng-show='!row.isService || row.open'>
-        <th ng-click="vm.toggleStackDrilldown(row)">
-          {{row.name}}
-          <div class="arrow"
-               ng-show="row.hasServices"
-               ng-class="row.open ? 'arrow-down' : 'arrow-right'"></div>
+  <drag-and-drop-file callback="vm.onFilesDropped(dataTransfer)">
+    Drop CSV File(s) Here
+  </drag-and-drop-file>
 
-        </th>
-        <td ng-repeat="environment in row.environments track by environment.id">
-            <span ng-if="environment.equivalentEnvironment"
-                  ng-class="environment.equivalentEnvironment"
-                  class="label">
-                  {{environment.equivalentEnvironment}}
-            </span>
-            <span ng-if="!environment.equivalentEnvironment"
-                  class="glyphicon glyphicon-remove gray"></span>
-        </td>
-      </tr>
-    </tbody>
-  </table>
 </div>

@@ -1,10 +1,10 @@
 "use strict";
 "global angular";
 
-//import registerLoadingIndicator from './loadingIndicator/loadingIndicator'
+import registerDragAndDropFile from './dragAndDropFile/dragAndDropFile'
 
 var module = angular.module('client.directives', []);
 
-//registerLoadingIndicator(module);
+registerDragAndDropFile(module);
 
 export default module;

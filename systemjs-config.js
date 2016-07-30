@@ -11,6 +11,7 @@ System.config({
     "github:*": "jspm_packages/github/*",
     "npm:*": "jspm_packages/npm/*"
   },
+
   meta: {
     "angular-ui-router": {
       "globals": {
@@ -18,6 +19,7 @@ System.config({
       }
     }
   },
+
   map: {
     "angular": "npm:angular@1.5.7",
     "angular-sanitize": "npm:angular-sanitize@1.5.7",
@@ -27,6 +29,8 @@ System.config({
     "babel-runtime": "npm:babel-runtime@5.8.38",
     "core-js": "npm:core-js@1.2.6",
     "json": "github:systemjs/plugin-json@0.1.2",
+    "level-js": "npm:level-js@2.2.4",
+    "levelup": "github:ricardobeat/indexedup@master",
     "text": "github:systemjs/plugin-text@0.0.8",
     "twbs/bootstrap": "github:twbs/bootstrap@3.3.6",
     "github:jspm/nodelibs-assert@0.1.0": {
@@ -35,11 +39,17 @@ System.config({
     "github:jspm/nodelibs-buffer@0.1.0": {
       "buffer": "npm:buffer@3.6.0"
     },
+    "github:jspm/nodelibs-events@0.1.1": {
+      "events": "npm:events@1.0.2"
+    },
     "github:jspm/nodelibs-path@0.1.0": {
       "path-browserify": "npm:path-browserify@0.0.0"
     },
     "github:jspm/nodelibs-process@0.1.2": {
       "process": "npm:process@0.11.5"
+    },
+    "github:jspm/nodelibs-stream@0.1.0": {
+      "stream-browserify": "npm:stream-browserify@1.0.0"
     },
     "github:jspm/nodelibs-util@0.1.0": {
       "util": "npm:util@0.10.3"
@@ -47,8 +57,24 @@ System.config({
     "github:jspm/nodelibs-vm@0.1.0": {
       "vm-browserify": "npm:vm-browserify@0.0.4"
     },
+    "github:ricardobeat/indexedup@master": {
+      "errno": "npm:errno@0.1.4",
+      "events": "github:jspm/nodelibs-events@0.1.1",
+      "path": "github:jspm/nodelibs-path@0.1.0",
+      "process": "github:jspm/nodelibs-process@0.1.2",
+      "stream": "github:jspm/nodelibs-stream@0.1.0",
+      "util": "github:jspm/nodelibs-util@0.1.0"
+    },
     "github:twbs/bootstrap@3.3.6": {
       "jquery": "npm:jquery@3.0.0"
+    },
+    "npm:abstract-leveldown@0.12.4": {
+      "buffer": "github:jspm/nodelibs-buffer@0.1.0",
+      "fs": "github:jspm/nodelibs-fs@0.1.2",
+      "path": "github:jspm/nodelibs-path@0.1.0",
+      "process": "github:jspm/nodelibs-process@0.1.2",
+      "util": "github:jspm/nodelibs-util@0.1.0",
+      "xtend": "npm:xtend@3.0.0"
     },
     "npm:angular-ui-router@0.2.18": {
       "angular": "npm:angular@1.5.7",
@@ -77,11 +103,39 @@ System.config({
       "process": "github:jspm/nodelibs-process@0.1.2",
       "systemjs-json": "github:systemjs/plugin-json@0.1.2"
     },
+    "npm:core-util-is@1.0.2": {
+      "buffer": "github:jspm/nodelibs-buffer@0.1.0"
+    },
+    "npm:errno@0.1.4": {
+      "fs": "github:jspm/nodelibs-fs@0.1.2",
+      "process": "github:jspm/nodelibs-process@0.1.2",
+      "prr": "npm:prr@0.0.0"
+    },
+    "npm:idb-wrapper@1.7.0": {
+      "fs": "github:jspm/nodelibs-fs@0.1.2",
+      "process": "github:jspm/nodelibs-process@0.1.2"
+    },
     "npm:inherits@2.0.1": {
       "util": "github:jspm/nodelibs-util@0.1.0"
     },
+    "npm:isbuffer@0.0.0": {
+      "buffer": "github:jspm/nodelibs-buffer@0.1.0"
+    },
     "npm:jquery@3.0.0": {
       "process": "github:jspm/nodelibs-process@0.1.2"
+    },
+    "npm:level-js@2.2.4": {
+      "abstract-leveldown": "npm:abstract-leveldown@0.12.4",
+      "buffer": "github:jspm/nodelibs-buffer@0.1.0",
+      "idb-wrapper": "npm:idb-wrapper@1.7.0",
+      "isbuffer": "npm:isbuffer@0.0.0",
+      "ltgt": "npm:ltgt@2.1.2",
+      "typedarray-to-buffer": "npm:typedarray-to-buffer@1.0.4",
+      "util": "github:jspm/nodelibs-util@0.1.0",
+      "xtend": "npm:xtend@2.1.2"
+    },
+    "npm:ltgt@2.1.2": {
+      "buffer": "github:jspm/nodelibs-buffer@0.1.0"
     },
     "npm:path-browserify@0.0.0": {
       "process": "github:jspm/nodelibs-process@0.1.2"
@@ -91,12 +145,36 @@ System.config({
       "fs": "github:jspm/nodelibs-fs@0.1.2",
       "vm": "github:jspm/nodelibs-vm@0.1.0"
     },
+    "npm:readable-stream@1.1.14": {
+      "buffer": "github:jspm/nodelibs-buffer@0.1.0",
+      "core-util-is": "npm:core-util-is@1.0.2",
+      "events": "github:jspm/nodelibs-events@0.1.1",
+      "inherits": "npm:inherits@2.0.1",
+      "isarray": "npm:isarray@0.0.1",
+      "process": "github:jspm/nodelibs-process@0.1.2",
+      "stream-browserify": "npm:stream-browserify@1.0.0",
+      "string_decoder": "npm:string_decoder@0.10.31"
+    },
+    "npm:stream-browserify@1.0.0": {
+      "events": "github:jspm/nodelibs-events@0.1.1",
+      "inherits": "npm:inherits@2.0.1",
+      "readable-stream": "npm:readable-stream@1.1.14"
+    },
+    "npm:string_decoder@0.10.31": {
+      "buffer": "github:jspm/nodelibs-buffer@0.1.0"
+    },
+    "npm:typedarray-to-buffer@1.0.4": {
+      "buffer": "github:jspm/nodelibs-buffer@0.1.0"
+    },
     "npm:util@0.10.3": {
       "inherits": "npm:inherits@2.0.1",
       "process": "github:jspm/nodelibs-process@0.1.2"
     },
     "npm:vm-browserify@0.0.4": {
       "indexof": "npm:indexof@0.0.1"
+    },
+    "npm:xtend@2.1.2": {
+      "object-keys": "npm:object-keys@0.4.0"
     }
   }
 });
