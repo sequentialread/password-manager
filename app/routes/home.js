@@ -2,13 +2,51 @@
 
 import template from './home.tmpl.html!text'
 
-var HomeController = ['$state', 'StorageService',
-function HomeController($state, StorageService) {
-  this.onFilesDropped = (dataTransfer) => {
-    Array.prototype.forEach.call(dataTransfer.files, x => {
+var HomeController = ['$interval', 'CryptoService', 'CSVIntelligenceService',
+function HomeController($interval, CryptoService, CSVIntelligenceService) {
 
+  this.loggedIn = CryptoService.isLoggedIn() || true;
+
+  this.files = [];
+  this.errorFiles = [];
+
+  this.generateNewPassphrase = () => {
+    this.generatingNewPassphrase = true;
+
+    var entropizer = CryptoService.getPassphraseEntropizer();
+
+    var checkInterval = $interval(() => {
+      this.generatingNewPassphraseProgress = entropizer.entropyScore;
+      if(entropizer.entropyScore >= 100) {
+        this.passphrase = entropizer.passphrase;
+        $interval.cancel(checkInterval);
+        this.generatingNewPassphrase = false;
+      }
+    }, 100);
+  };
+
+  this.login = () => {
+    CryptoService.setPassphrase(this.passphrase);
+    this.passphrase = '';
+    this.loggedIn = true;
+  };
+
+  this.onFilesDropped = (dataTransfer) => {
+    Array.prototype.forEach.call(dataTransfer.files, file => {
+      var reader = new FileReader();
+      reader.readAsText(file);
+      reader.onload = (resultEvent) => {
+        file.decoratedData = CSVIntelligenceService.parseAndDecorate(resultEvent.target.result);
+        this.files.push(file);
+      };
+      reader.onerror = (errorEvent) => {
+        file.error = errorEvent.target.error;
+        this.errorFiles.push(file);
+      };
     });
   };
+
+
 }];
 
 export default function registerRouteAndController($stateProvider) {
