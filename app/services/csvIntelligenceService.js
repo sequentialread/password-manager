@@ -104,7 +104,7 @@ var CSVIntelligenceService = [function () {
               if(!state.occuranceDeltaHistogram[key]) {
                 state.occuranceDeltaHistogram[key] = {rowIds: [], delta:delta, remainderOffset:remainderOffset};
               }
-              state.occuranceDeltaHistogram[delta].rowIds.push(state.lastRowId);
+              state.occuranceDeltaHistogram[key].rowIds.push(state.lastRowId);
             }
             state.lastRowId = rowId;
             return state;
@@ -118,10 +118,11 @@ var CSVIntelligenceService = [function () {
             var thisDelta = {
               delta: occuranceDeltaHistogram[occuranceDeltaRemainder].delta,
               remainderOffset: occuranceDeltaHistogram[occuranceDeltaRemainder].remainderOffset,
-              rowIds: occuranceDeltaHistogram[occuranceDeltaRemainder].rowIds,
-              minRowId: thisDelta.rowIds[0],
-              maxRowId: thisDelta.rowIds[thisDelta.rowIds.length-1]
+              rowIds: occuranceDeltaHistogram[occuranceDeltaRemainder].rowIds
             };
+
+            thisDelta.minRowId = thisDelta.rowIds[0];
+            thisDelta.maxRowId = thisDelta.rowIds[thisDelta.rowIds.length-1];
 
             thisDelta.percentContiguous = thisDelta.rowIds.reduce(
               (state, rowId) => {
@@ -195,19 +196,22 @@ var CSVIntelligenceService = [function () {
         return xStartsBetween || xEndsBetween || xContains;
       });
 
-      var repeatingUnit = Number(
-        simpleHistogram(
-          relevantRowPatternHistograms.map(x => x.occuranceDeltaHistogramArray[0].delta),
+      // TODO weight these based on the number of in-bounds rowIds?
+      var repeatingUnitString = simpleHistogram(
+          relevantRowPatternHistograms.map(x => x.occuranceDeltaHistogramArray[0])
+            .map(x => `${x.delta}_${x.remainderOffset}`),
           x => x, 'count', 'desc'
-        )[0].key
-      );
+        )[0].key;
+        
+      var repeatingUnitSize = Number(repeatingUnitString.split('_')[0]);
+      var repeatingUnitOffset = Number(repeatingUnitString.split('_')[1]);
 
-      var columnRepeatingUnitStats = Array.apply(null, {length: maxColumnCount*repeatingUnit});
+      var columnRepeatingUnitStats = Array.apply(null, {length: maxColumnCount*repeatingUnitSize});
       for(var x = 0; x < maxColumnCount; x ++) {
-        for(var i = 0; i < repeatingUnit; i++) {
-          var columnRepeatingUnitIndex = x*repeatingUnit+i;
+        for(var i = 0; i < repeatingUnitSize; i++) {
+          var columnRepeatingUnitIndex = x*repeatingUnitSize+i;
           var stats = {formatHistogram:{}};
-          for(var y = rowSliceTheory[0]; y < rowSliceTheory[1]; y += repeatingUnit) {
+          for(var y = rowSliceTheory[0]; y < rowSliceTheory[1]; y += repeatingUnitSize) {
             var tokens = rows[y+i][x];
             var formatKey = `D${tokens.dates.length}N${tokens.numbers.length}P${tokens.phrases.length}`;
             if(!stats.formatHistogram[formatKey]) {
