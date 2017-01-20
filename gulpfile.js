@@ -8,6 +8,8 @@ var plumber = require('gulp-plumber');
 var Builder = require('systemjs-builder');
 var less = require('gulp-less');
 var concatCss = require('gulp-concat-css');
+var gulpgo = require('gulp-go-windows-fork');
+var go;
 var browserSync = require('browser-sync').create();
 
 var pathToStaticDist = 'dist/';
@@ -17,6 +19,7 @@ var pathToServerSrc = 'server/'
 var bootstrap = 'jspm_packages/github/twbs/bootstrap@3.3.6/css/bootstrap.css';
 var bootstrapFonts = 'jspm_packages/github/twbs/bootstrap@3.3.6/fonts/*';
 var watchJs = pathToStaticSrc+'**/*.js';
+var watchGo = 'server/*.go';
 var watchLess = [pathToStaticSrc+'**/*.less'];
 var watchJsTemplates = pathToStaticSrc+'**/*.tmpl.html';
 var watchServerTemplates = 'server/*.html';
@@ -50,11 +53,6 @@ gulp.task('bundle-js', ['copy-js-sources-for-source-maps'], function () {
   });
 });
 
-gulp.task('copy-index-html', [], function () {
-  return gulp.src(pathToStaticSrc+"index.html")
-    .pipe(gulp.dest(pathToStaticDist));
-});
-
 gulp.task('copy-js-sources-for-source-maps', [], function () {
   return gulp.src(pathToStaticSrc+"**/*")
     .pipe(gulp.dest(pathToStaticDist+"app/"));
@@ -71,13 +69,29 @@ gulp.task('copy-fonts', [], function() {
 });
 
 
+gulp.task("go-run", function() {
+  var cwd = __dirname.replace(new RegExp('\\\\', 'g'), '/');
+  glob(watchGo, {cwd: cwd}, function (er, files) {
+    //console.log(cwd, files.join(" "));
+    go = gulpgo.run(files, [], {
+      cwd: cwd,
+      onStdout: function(buffer) { console.log(buffer.toString('utf8')); },
+      onStderr:  function(buffer) { console.error(buffer.toString('utf8')); }
+    });
+  });
+});
+
+gulp.task("go-restart", function() {
+  go.restart();
+});
+
+
 gulp.task('build', [
   'copy-css',
   'copy-fonts',
   'bundle-less',
   'bundle-js',
-  'bundle-vendor-js',
-  'copy-index-html'
+  'bundle-vendor-js'
 ], function(){});
 
 gulp.task('bundle-less', function () {
@@ -91,19 +105,26 @@ gulp.task('bundle-less', function () {
 
 gulp.task('bundle-js-watch', ['bundle-js'], function() { browserSync.reload(); });
 
+gulp.task('go-server-watch', ['go-restart'], function() {
+  setTimeout(function() { browserSync.reload(); }, 2200);
+ });
+
 var debounceLESS = debounce(function () { gulp.start('bundle-less'); }, 200);
 var debounceJS = debounce(function () { gulp.start('bundle-js-watch'); }, 200);
+
+var debounceGo = debounce(function () { gulp.start('go-server-watch'); }, 200);
 
 gulp.task('watch', ['build'], function() {
   gulp.watch(watchLess, function () { debounceLESS(); });
   gulp.watch([watchJs, watchJsTemplates], function () { debounceJS(); });
+  gulp.watch([watchGo, watchServerTemplates], function () { debounceGo(); });
 });
 
-gulp.task('serve', ['watch'], function() {
+gulp.task('serve', ['go-run', 'watch'], function() {
 
   browserSync.init({
-    server: {
-      baseDir: pathToStaticDist
+    proxy: {
+      target: "http://localhost:8080",
     }
   });
 });

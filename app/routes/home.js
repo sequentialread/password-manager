@@ -2,10 +2,10 @@
 
 import template from './home.tmpl.html!text'
 
-var HomeController = ['$interval', 'CryptoService', 'CSVIntelligenceService',
-function HomeController($interval, CryptoService, CSVIntelligenceService) {
+var HomeController = ['$interval', 'CryptoService',
+function HomeController($interval, CryptoService) {
 
-  this.loggedIn = CryptoService.isLoggedIn() || true;
+  this.loggedIn = CryptoService.isLoggedIn() ;
 
   this.files = [];
   this.errorFiles = [];
