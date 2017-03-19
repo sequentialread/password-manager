@@ -93,6 +93,11 @@ func indexHtml(response http.ResponseWriter, request *http.Request) {
 		fmt.Fprintf(response, "500 %s", err)
 		return
 	}
+	response.Header().Set("Cache-Control", "max-age=0")
+	response.Header().Set("Cache-Control", "must-revalidate")
+	response.Header().Set("Cache-Control", "no-cache")
+	response.Header().Set("Cache-Control", "no-store")
+
 	io.Copy(response, &buffer)
 }
 
@@ -105,6 +110,11 @@ func cacheManifest(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 	response.Header().Set("Content-Type", "text/cache-manifest")
+	response.Header().Set("Cache-Control", "max-age=0")
+	response.Header().Set("Cache-Control", "must-revalidate")
+	response.Header().Set("Cache-Control", "no-cache")
+	response.Header().Set("Cache-Control", "no-store")
+
 	io.Copy(response, &buffer)
 }
 
@@ -132,15 +142,12 @@ func hashFiles(filenames []string) string {
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
 
-func main() {
-
-	dataPath = filepath.Join(".", "data")
-	os.MkdirAll(dataPath, os.ModePerm)
-
+func reloadStaticFiles() {
 	application.Version = hashFiles([]string{
 		"index.html.gotemplate",
 		"index.appcache.gotemplate",
 		"static/application.js",
+		"static/awsClient.js",
 		"static/application.css",
 		"static/vendor/sjcl.js",
 		"static/vendor/tenThousandMostCommonEnglishWords.js",
@@ -150,6 +157,14 @@ func main() {
 
 	indexTemplate = loadTemplate("index.html.gotemplate")
 	appcacheTemplate = loadTemplate("index.appcache.gotemplate")
+}
+
+func main() {
+
+	dataPath = filepath.Join(".", "data")
+	os.MkdirAll(dataPath, os.ModePerm)
+
+	reloadStaticFiles()
 
 	http.HandleFunc("/", indexHtml)
 	http.HandleFunc("/index.appcache", cacheManifest)
@@ -160,6 +175,14 @@ func main() {
 
 	var headless = flag.Bool("headless", false, "headless server mode")
 	if *headless == false {
+
+		go func() {
+			for true {
+				reloadStaticFiles()
+				time.Sleep(time.Second * 2)
+			}
+		}()
+
 		go func() {
 			var appUrl = "http://localhost:" + appPort
 			var serverIsRunning = false

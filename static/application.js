@@ -84,47 +84,164 @@
   })();
 })(window.sequentialReadPasswordManager, window, document);
 
+
 (function(app, window, document, undefined){
-  app.storageService = new (function StorageService(cryptoService) {
+  app.storageService = new (function StorageService(cryptoService, awsClient) {
 
     var baseUrl = "/storage";
 
-    var request = (method, url, content) =>
+    var s3InterceptorSymbol = "/awsS3";
+
+    var localStorageKeyPrefix = "sequentialread-pwm:";
+
+    var awsS3BucketName = 'sequentialread-pwm';
+    var awsS3BucketRegion = 'us-west-2';
+
+    var requestsCurrentlyInFlight = 0;
+
+    function RequestFailure(httpRequest, isTimeout) {
+      this.httpRequest = httpRequest;
+      this.isTimeout = isTimeout
+    }
+
+    // request ALWAYS resolves, if it fails it will resolve a RequestFailure.
+    var request = (method, url, headers, content) =>
       new Promise((resolve, reject) => {
-        var httpRequest = new XMLHttpRequest();
-        httpRequest.onreadystatechange = () => {
-          if (httpRequest.readyState === XMLHttpRequest.DONE) {
-            if (httpRequest.status === 200) {
-              if(httpRequest.responseText.length == 0) {
-                resolve();
-              } else {
-                try {
-                  resolve(JSON.parse(cryptoService.decrypt(httpRequest.responseText)));
-                } catch (err) {
-                  resolve(httpRequest.responseText);
-                }
-              }
-            } else {
-              reject(httpRequest);
-            }
+
+        requestsCurrentlyInFlight += 1;
+        document.getElementById('progress-container').style.display = 'block';
+
+        var resolveAndPopInFlight = (result) => {
+          requestsCurrentlyInFlight -= 1;
+          if(requestsCurrentlyInFlight == 0) {
+            document.getElementById('progress-container').style.display = 'none';
           }
+          resolve(result);
         };
 
-        httpRequest.open(method, url);
+        headers = headers || {};
+        var httpRequest = new XMLHttpRequest();
+        httpRequest.onloadend = () => {
+          //console.log(`httpRequest.onloadend: ${httpRequest.status} ${url}`);
+          if (httpRequest.status === 200) {
+            if(httpRequest.responseText.length == 0) {
+              resolveAndPopInFlight();
+            } else {
+              try {
+                resolveAndPopInFlight(JSON.parse(cryptoService.decrypt(httpRequest.responseText)));
+              } catch (err) {
+                resolveAndPopInFlight(httpRequest.responseText);
+              }
+            }
+          } else if(httpRequest.status !== 0) {
+            resolveAndPopInFlight(new RequestFailure(httpRequest, false));
+          }
+        };
+        //httpRequest.onerror = () => {
+        //  console.log(`httpRequest.onerror: ${httpRequest.status} ${url}`);
+        //  resolveAndPopInFlight(new RequestFailure(httpRequest, false));
+        //};
+        httpRequest.ontimeout = () => {
+          //console.log(`httpRequest.ontimeout: ${httpRequest.status} ${url}`);
+          resolveAndPopInFlight(new RequestFailure(httpRequest, true));
+        };
+
+        // Encrypt Content first
         if(content) {
-          httpRequest.setRequestHeader('Content-Type', 'text/plain');
-          httpRequest.send(cryptoService.encrypt(JSON.stringify(content, 0, 2)));
+          if(typeof content == "object") {
+            content = JSON.stringify(content, 0, 2);
+          }
+          content = cryptoService.encrypt(content);
+        }
+
+        // AWS S3 request interceptor
+        if(url.startsWith(s3InterceptorSymbol)) {
+          var path = url.replace(s3InterceptorSymbol, '');
+          if(path.startsWith('/')){
+            path = path.substring(1);
+          }
+          var s3Request = awsClient.s3Request(method, awsS3BucketRegion, awsS3BucketName, path, content);
+          headers = s3Request.headers;
+          url = s3Request.endpointUri;
+
+          //console.log(url, headers);
+        }
+
+        httpRequest.open(method, url);
+        httpRequest.timeout = 2000;
+
+        Object.keys(headers)
+          .filter(key => key.toLowerCase() != 'host' && key.toLowerCase() != 'content-length')
+          .forEach(key => httpRequest.setRequestHeader(key, headers[key]));
+        if(content) {
+          httpRequest.send(content);
         } else {
           httpRequest.send();
         }
       });
 
-      var s3Request = 
+    this.get = (id) => {
+      // request() ALWAYS resolves, if it fails it will resolve a RequestFailure.
+      return Promise.all([
+        request('GET', `${baseUrl}/${id}`),
+        request('GET', `${s3InterceptorSymbol}/${id}`)
+      ]).then((results) => {
+        return new Promise((resolve, reject) => {
+          var localCopy = JSON.parse(window.localStorage[`${localStorageKeyPrefix}${id}`]);
+          var sequentialreadCopy = results[0];
+          var s3Copy = results[1];
+          var allCopies = [];
+          if(localCopy) {
+            allCopies.push(localCopy);
+          }
+          if(!(sequentialreadCopy instanceof RequestFailure)) {
+            allCopies.push(sequentialreadCopy);
+          }
+          if(!(s3Copy instanceof RequestFailure)) {
+            allCopies.push(s3Copy);
+          }
+          if(allCopies.length == 0) {
+            reject();
+            return;
+          }
 
-    this.get = (id) => request('GET', `${baseUrl}/${id}`);
-    this.put = (id, content) => request('PUT', `${baseUrl}/${id}`, content);
-    this.delete = (id) => request('DELETE', `${baseUrl}/${id}`);
-  })(app.cryptoService);
+          var latestCopy = {lastUpdated:0};
+          allCopies.forEach(x => {
+            if(x.lastUpdated && x.lastUpdated > latestCopy.lastUpdated) {
+              latestCopy = x;
+            }
+          });
+
+          if(latestCopy.lastUpdated == 0) {
+            reject();
+            return;
+          }
+
+          if(allCopies.filter(x => x.lastUpdated < latestCopy.lastUpdated).length > 0) {
+            this.put(id, latestCopy).then(() => resolve(latestCopy));
+          } else {
+            resolve(latestCopy);
+          }
+        });
+      });
+    };
+    this.put = (id, content) => {
+      content.lastUpdated = new Date().getTime();
+      // request() ALWAYS resolves, if it fails it will resolve a RequestFailure.
+      window.localStorage[`${localStorageKeyPrefix}${id}`] = JSON.stringify(content);
+      return Promise.all([
+        request('PUT', `${baseUrl}/${id}`, {'Content-Type': 'application/json'}, content),
+        request('PUT', `${s3InterceptorSymbol}/${id}`, {'Content-Type': 'application/json'}, content)
+      ]).then(() => content)
+    };
+    this.delete = (id) => {
+      window.localStorage.removeItem(`${localStorageKeyPrefix}${id}`);
+      return Promise.all([
+        request('DELETE', `${baseUrl}/${id}`),
+        request('DELETE', `${s3InterceptorSymbol}/${id}`)
+      ]).then(() => null);
+    };
+  })(app.cryptoService, app.awsClient);
 })(window.sequentialReadPasswordManager, window, document);
 
 (function(app, document, undefined){
@@ -168,6 +285,40 @@
 
   })();
 })(window.sequentialReadPasswordManager, document);
+
+
+(function(app, window, document, undefined){
+  app.errorHandler = new (function ErrorHandler(modalService) {
+
+    this.onError = (message, fileName, lineNumber, column, err) => {
+      console.log(message, fileName, lineNumber, column, err);
+      modalService.open(
+        "JavaScript Error",
+        `<div>
+          <span class="yavascript"></span>
+        </div>
+        ${err ? err.name : ''}: ${message || err.message} at ${fileName}:${lineNumber}
+        `,
+        (resolve, reject) => {},
+        [{
+          innerHTML: "Ok",
+          onclick: (resolve, reject) => resolve()
+        }]
+      )
+    };
+
+    window.onerror = this.onError;
+    window.addEventListener("unhandledrejection", (unhandledPromiseRejectionEvent, promise) => {
+      var err = unhandledPromiseRejectionEvent.reason;
+      if(typeof err == "string") {
+        err = new Error(err);
+      }
+      if(err) {
+        this.onError(err.message, err.fileName, err.lineNumber, null, err);
+      }
+    });
+  })(app.modalService);
+})(window.sequentialReadPasswordManager, window);
 
 (function(app, document, undefined){
   app.navController = new (function NavController() {
@@ -305,16 +456,12 @@
       storageService.get(cryptoService.getKeyId())
       .then(
         renderFileList,
-        (xmlHttpRequest) => {
-          if(xmlHttpRequest.status == 404) {
-            storageService.put(cryptoService.getKeyId(), this.fileListDocument)
-            .then(
-              () => renderFileList(this.fileListDocument),
-              () => null //TODO error handler
-            );
-          } else {
-            //TODO error handler
-          }
+        () => {
+          storageService.put(cryptoService.getKeyId(), this.fileListDocument)
+          .then(
+            () => renderFileList(this.fileListDocument),
+            () => null //TODO error handler
+          );
         }
       )
     };
