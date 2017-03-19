@@ -1,5 +1,5 @@
 
-#SequentialRead Password Manager
+# SequentialRead Password Manager
 
 [Try it!](https://pwm.sequentialread.com)
 
@@ -11,7 +11,7 @@ This is a Golang / HTML5  / vanilla JavaScript web-application which stores encr
 
 ![screenshot](screenshot.png)
 
-##Encryption Key User Interface
+## Encryption Key User Interface
 
 You are allowed to use whatever seed you want for your 256 bit AES key. If you pick a weak seed and get hacked, that is your fault. The application warned you about it. It was even red, bold and underlined!
 
@@ -19,7 +19,7 @@ The application includes an HMAC/mouse-movement based entropy generator to creat
 
 `bedrooms confirmation decor generic wondering temperatures bm retreat beer`
 
-##Security
+## Security
 
 First and foremost, the application is easy to audit since it has only one dependency: sjcl.js, AKA the Stanford JavaScript Crypto Library.
 
@@ -27,7 +27,7 @@ There is nothing that pulls in dependencies, no bundling step, etc. There is onl
 
 It was designed that way to strengthen the claim that "everything it sends out from the javascript VM is encrypted".
 
-##Fault-tolerance
+## Fault-tolerance
 
  It uses the [HTML5 Application Cache](https://webcache.googleusercontent.com/search?q=cache:ih81QOzVxasJ:https://alistapart.com/article/application-cache-is-a-douchebag) to ensure that even if my server goes down, the app still loads.
 
