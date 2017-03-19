@@ -1,0 +1,86 @@
+body {
+  background: #e4e4e4;
+  color: #333333;
+  padding: 0;
+  margin:0;
+  font-family: 'Ubuntu','Roboto','Open Sans',sans-serif;
+}
+h3 {
+  margin-top:0px;
+  margin-bottom: 15px;
+  color: #333333;
+}
+input, button {
+  border-radius: 2px;
+  border: 1px solid #dddddd;
+  padding: 5px;
+  margin:5px;
+}
+input::-moz-focus-inner,button::-moz-focus-inner {
+  border: 0;
+}
+button:focus,input:focus {
+  border: 1px solid #bbaaff;
+  outline: none;
+}
+button{
+  background: #f4f4f4;
+  color: #333333;
+}
+button:hover {
+  background: #ffffff;
+}
+button:active {
+  background: #ffffff;
+  border: 1px solid #dddddd;
+}
+input[type="text"]{
+  color:  #666666;
+}
+
+.header {
+  color: white;
+  background: #9359fa;
+  border-bottom: 1px solid #452775;
+  height: 20px;
+  padding:12px;
+  padding-top:6px;
+  font-size:18px;
+  font-weight: bold;
+}
+.header-shadow {
+  height: 3px;
+  border-top: 1px solid #727630;
+  background: #f6ff72;
+  border-bottom: 1px solid #bbbbbb;
+  margin-bottom: 20px;
+}
+.content {
+  background: white;
+  color: #333333;
+  border-radius: 5px;
+  border: 1px solid #dddddd;
+  margin: auto;
+  padding: 20px;
+  padding-top:15px;
+}
+.content.splash {
+  max-width: 800px;
+}
+.content.main {
+  width: 90%;
+}
+.progress-bar-holder {
+  margin-top: 15px;
+  margin-bottom: 5px;
+  height: 25px;
+  width: 100%;
+}
+.progress-bar {
+  background:#11ff22;
+  height: 5px;
+  margin: 5px;
+}
+.instructions {
+  font-size: 12px;
+}

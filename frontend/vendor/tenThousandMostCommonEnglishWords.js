@@ -1,4 +1,5 @@
-the
+(function(global){
+  global.tenThousandMostCommonEnglishWords=`the
 of
 and
 to
@@ -9997,4 +9998,5 @@ varieties
 arbor
 mediawiki
 configurations
-poison
+poison`.split('\n');
+})(window.sequentialReadPasswordManager);

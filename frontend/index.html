@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>pwm</title>
+  <script>
+    // global namespace where we will be putting everything
+    window.sequentialReadPasswordManager = {};
+    // a fake implementation of AMD just so I can use use sjcl.js (Stanford JavaScript Crypto Library) without any modifications
+    window.define = function(dependencies, factory) {
+      window.sequentialReadPasswordManager.sjcl = factory();
+    };
+  </script>
+  <script src="vendor/sjcl.js"></script>
+  <script src="vendor/tenThousandMostCommonEnglishWords.js"></script>
+  <link rel="stylesheet" type="text/css" href="application.css">
+</head>
+<body>
+  <div class="header">Sequential Read Password Manager</div>
+  <div class="header-shadow"></div>
+  <div class="splash content" id="splash-content">
+    <h3>Enter/Generate your Secret Encryption Key</h3>
+    <div class="progress-bar-holder">
+      <span id="move-mouse-instruction" style="visibility: hidden;">Move your mouse around to generate entropy</span>
+      <div class="progress-bar" id="entropy-progress-bar" style="width:0;"></div>
+    </div>
+    <input id="encryption-secret" type="text" style="width:calc(100% - 10px);"></input>
+    <button id="generate-encryption-secret-button">
+      Generate new Encryption Secret
+    </button>
+    <button id="splash-continue-button" style="float:right;">
+      Continue
+    </button>
+    <p class="instructions">
+      This is an encryption key, not a password. Save it somewhere <u>secure</u> so you don't lose it. We can't recover it for you.<br/>
+      This is the only thing protecting the data you enter here from being publicly avaliable, so it should be <u>extremely long and hard to guess</u>.<br/>
+      It needs to be so long that even a supercomputer can't guess it. It should contain about 256 bits of entropy. If you are in doubt click generate.<br/>
+    </p>
+  </div>
+  <div class="main content" id="file-list-content" style="display:none;">
+    <h3>Files</h3>
+    <div style="height:20px; width:100%;">
+      <button id="new-file-button" style="float:right;">
+        New File...
+      </button>
+    </div>
+    <div id="file-list">
+    </div>
+  </div>
+  <div class="main content" id="file-content" style="display:none;">
+    <h3></h3>
+    <ul id="file-list">
+    </ul>
+  </div>
+  <script src="application.js"></script>
+</body>
+</html>
