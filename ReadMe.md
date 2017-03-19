@@ -1,7 +1,7 @@
 
 # SequentialRead Password Manager
 
-[Try it!](https://pwm.sequentialread.com)
+[Try it! (https://pwm.sequentialread.com) ](https://pwm.sequentialread.com)
 
 This is a Golang / HTML5  / vanilla JavaScript web-application which stores encrypted text files in three places:
 
