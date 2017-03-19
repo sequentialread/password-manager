@@ -479,6 +479,9 @@
         fileListElement.innerHTML = '';
         var fileListUl = document.createElement('ul');
         fileListElement.appendChild(fileListUl);
+        this.fileListDocument.files.sort((a, b) => {
+          a.name.localeCompare(b.name);
+        });
         this.fileListDocument.files.forEach(file => {
           var fileLi = document.createElement('li');
           var fileLink = document.createElement('a');
