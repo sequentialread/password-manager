@@ -45,7 +45,7 @@ It was designed that way to strengthen the claim that "everything it sends out f
 
  That means if you happen to make conflicting changes, there is no real conflict resolution. The latest one wins.
 
- ## Encryption Key User Interface Disclaimer
+## Encryption Key User Interface Disclaimer
 
  You are allowed to use whatever seed you want for your 256 bit AES key. If you pick a weak seed and get hacked, that is your fault. The application warned you about it. It was even red, bold and underlined!
 
