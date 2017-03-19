@@ -8,6 +8,3 @@ CACHE MANIFEST
 
 NETWORK:
 *
-
-FALLBACK:
-/offlineDetector /static/application.css?v={{.Version}}

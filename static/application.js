@@ -119,10 +119,7 @@
         }
       });
 
-      var hasNetworkAccess = false;
-      request("GET", "/offlineDetector").then(x => {
-        hasNetworkAccess = x == "You Are Online";
-      })
+      var s3Request = 
 
     this.get = (id) => request('GET', `${baseUrl}/${id}`);
     this.put = (id, content) => request('PUT', `${baseUrl}/${id}`, content);

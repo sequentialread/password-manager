@@ -80,15 +80,6 @@ func storage(response http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func offlineDetector(response http.ResponseWriter, request *http.Request) {
-	response.Header().Set("Cache-Control", "max-age=0")
-	response.Header().Set("Cache-Control", "must-revalidate")
-	response.Header().Set("Cache-Control", "no-cache")
-	response.Header().Set("Cache-Control", "no-store")
-	response.WriteHeader(200)
-	fmt.Fprint(response, "You Are Online")
-}
-
 func indexHtml(response http.ResponseWriter, request *http.Request) {
 	if request.URL.Path != "/" {
 		response.WriteHeader(404)
@@ -162,7 +153,6 @@ func main() {
 
 	http.HandleFunc("/", indexHtml)
 	http.HandleFunc("/index.appcache", cacheManifest)
-	http.HandleFunc("/offlineDetector", offlineDetector)
 
 	http.HandleFunc("/storage/", storage)
 
