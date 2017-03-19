@@ -49,9 +49,10 @@ input[type="text"]{
 }
 
 textarea {
-  width: 100%;
+  width: calc(100% - 20px);
   height: 200px;
   resize: vertical;
+  padding: 10px;
 }
 
 .header {
@@ -124,9 +125,19 @@ textarea {
 }
 .saved-status-indicator {
   border-radius: 3px;
-  background: #00e540;
+
   padding: 5px;
   color:white;
   font-weight: bold;
   float:right;
+}
+
+.saved-status-indicator.saved {
+    background: #00e540;
+}
+.saved-status-indicator.saving {
+    background: orange;
+}
+.saved-status-indicator.error {
+    background: red;
 }

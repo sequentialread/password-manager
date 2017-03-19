@@ -101,7 +101,7 @@
                 try {
                   resolve(JSON.parse(cryptoService.decrypt(httpRequest.responseText)));
                 } catch (err) {
-                  resolve(cryptoService.decrypt(httpRequest.responseText));
+                  resolve(httpRequest.responseText);
                 }
               }
             } else {
@@ -111,16 +111,18 @@
         };
 
         httpRequest.open(method, url);
-        if(content && typeof content == 'object') {
+        if(content) {
           httpRequest.setRequestHeader('Content-Type', 'text/plain');
           httpRequest.send(cryptoService.encrypt(JSON.stringify(content, 0, 2)));
-        } else if(content) {
-          httpRequest.setRequestHeader('Content-Type', 'text/plain');
-          httpRequest.send(cryptoService.encrypt(content));
         } else {
           httpRequest.send();
         }
       });
+
+      var hasNetworkAccess = false;
+      request("GET", "/offlineDetector").then(x => {
+        hasNetworkAccess = x == "You Are Online";
+      })
 
     this.get = (id) => request('GET', `${baseUrl}/${id}`);
     this.put = (id, content) => request('PUT', `${baseUrl}/${id}`, content);
@@ -129,7 +131,7 @@
 })(window.sequentialReadPasswordManager, window, document);
 
 (function(app, document, undefined){
-  app.modalService = new (function modalService() {
+  app.modalService = new (function ModalService() {
     this.open = (title, body, controller, buttons) => {
       return new Promise((resolve, reject) => {
         document.getElementById('modal-container').style.display = 'block';
@@ -183,32 +185,60 @@
   })();
 })(window.sequentialReadPasswordManager, document);
 
-(function(app, document, undefined){
+(function(app, document, window, undefined){
   app.fileDetailController = new (function FileDetailController(storageService, cryptoService, navController) {
 
+    var savedStatusIndicator = document.getElementById('saved-status-indicator');
 
     document.getElementById('file-detail-back-link').onclick = () => {
-      this.ensureSaved()
-      .then(
-        () => navController.navigate('file-list-content'),
-        () => {} // TODO handle errors
-      );
+      navController.navigate('file-list-content');
     };
 
-    this.ensureSaved = () => {
-      return Promise.resolve(); // TODO implement
+    this.saving = Promise.resolve();
+
+    var lastFileContent = '';
+    var markFileContentDirty = () => {
+      var doMarkDirty = () => {
+        if(this.saveTimeout) {
+          window.clearTimeout(this.saveTimeout);
+        }
+        savedStatusIndicator.className = "saved-status-indicator saving";
+        savedStatusIndicator.innerHTML = "Saving...";
+        this.saveTimeout = window.setTimeout(() => {
+          this.saveTimeout = null;
+          this.saving = storageService.put(this.file.id, this.file)
+          .then(
+            () => {
+              savedStatusIndicator.className = "saved-status-indicator saved";
+              savedStatusIndicator.innerHTML = "Saved";
+            },
+            () => {
+              savedStatusIndicator.className = "saved-status-indicator error";
+              savedStatusIndicator.innerHTML = "Error!";
+            }
+          );
+        }, 750);
+      };
+
+      this.file.content = document.getElementById('file-content').value;
+
+      if(this.file.content != lastFileContent) {
+        this.saving.then(doMarkDirty, doMarkDirty);
+      }
+      lastFileContent = this.file.content;
     };
+
+    document.getElementById('file-content').onchange = markFileContentDirty;
+    document.getElementById('file-content').onkeyup = markFileContentDirty;
 
     this.load = (file) => {
       this.file = file;
       document.getElementById('file-detail-file-name').innerHTML = file.name;
-      if(file.content) {
-        document.getElementById('file-content').innerText = file.name;
-      }
+      document.getElementById('file-content').value = file.content ? file.content : '';
     };
 
   })(app.storageService, app.cryptoService, app.navController);
-})(window.sequentialReadPasswordManager, document);
+})(window.sequentialReadPasswordManager, document, window);
 
 (function(app, document, undefined){
   app.fileListController = new (function FileListController(
@@ -260,14 +290,14 @@
               this.fileListDocument.files.push(newFile);
               return storageService.put(cryptoService.getKeyId(), this.fileListDocument)
             },
-            () => null, //TODO error handler
+            () => null //TODO error handler
           ).then(
             () => {
               renderFileList(this.fileListDocument);
               navController.navigate('file-detail-content');
               fileDetailController.load(newFile);
             },
-            () => null, //TODO error handler
+            () => null //TODO error handler
           );
         },
         () => {} // cancel is a no-op
@@ -283,7 +313,7 @@
             storageService.put(cryptoService.getKeyId(), this.fileListDocument)
             .then(
               () => renderFileList(this.fileListDocument),
-              () => null, //TODO error handler
+              () => null //TODO error handler
             );
           } else {
             //TODO error handler
@@ -313,7 +343,7 @@
                 navController.navigate('file-detail-content');
                 fileDetailController.load(file);
               },
-              () => null, //TODO error handler
+              () => null //TODO error handler
             );
           };
           fileLi.appendChild(fileLink);

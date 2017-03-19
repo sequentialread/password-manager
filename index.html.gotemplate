@@ -1,19 +1,22 @@
-<!DOCTYPE html>
-<html>
+<!DOCTYPE HTML>
+<html manifest="index.appcache">
 <head>
   <meta charset="UTF-8">
   <title>pwm</title>
   <script>
     // global namespace where we will be putting everything
-    window.sequentialReadPasswordManager = {};
+    window.sequentialReadPasswordManager = {
+      AWSAccessKeyId = {{.AWSAccessKeyId}}
+      AWSSecretAccessKey = {{.AWSSecretAccessKey}}
+    };
     // a fake implementation of AMD just so I can use use sjcl.js (Stanford JavaScript Crypto Library) without any modifications
     window.define = function(dependencies, factory) {
       window.sequentialReadPasswordManager.sjcl = factory();
     };
   </script>
-  <script src="vendor/sjcl.js"></script>
-  <script src="vendor/tenThousandMostCommonEnglishWords.js"></script>
-  <link rel="stylesheet" type="text/css" href="application.css">
+  <script src="static/vendor/sjcl.js?v={{.Version}}"></script>
+  <script src="static/vendor/tenThousandMostCommonEnglishWords.js?v={{.Version}}"></script>
+  <link rel="stylesheet" type="text/css" href="static/application.css?v={{.Version}}">
 </head>
 <body>
   <div class="header">Sequential Read Password Manager</div>
@@ -24,7 +27,7 @@
       <span id="move-mouse-instruction" style="visibility: hidden;">Move your mouse around to generate entropy</span>
       <div class="progress-bar" id="entropy-progress-bar" style="width:0;"></div>
     </div>
-    <input id="encryption-secret" type="text" style="width:calc(100% - 10px);"></input>
+    <input id="encryption-secret" type="text" style="width:calc(100% - 20px);"></input>
     <button id="generate-encryption-secret-button">
       Generate new Encryption Secret
     </button>
@@ -53,7 +56,7 @@
       <span id="file-detail-file-name"></span>
     </h3>
     <div style="height:40px;">
-      <div class="saved-status-indicator" id="saved-status-indicator">Saved</div>
+      <div class="saved-status-indicator saved" id="saved-status-indicator">Saved</div>
     </div>
     <textarea id="file-content"></textarea>
   </div>
@@ -65,6 +68,6 @@
     </div>
   </div>
 
-  <script src="application.js"></script>
+  <script src="static/application.js?v={{.Version}}"></script>
 </body>
 </html>

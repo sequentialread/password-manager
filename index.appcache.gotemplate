@@ -1,0 +1,13 @@
+CACHE MANIFEST
+# VERSION {{.Version}}
+/
+/static/application.css?v={{.Version}}
+/static/application.js?v={{.Version}}
+/static/vendor/sjcl.js?v={{.Version}}
+/static/vendor/tenThousandMostCommonEnglishWords.js?v={{.Version}}
+
+NETWORK:
+*
+
+FALLBACK:
+/offlineDetector /static/application.css?v={{.Version}}
