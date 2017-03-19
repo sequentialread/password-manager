@@ -245,16 +245,36 @@
   })(app.cryptoService, app.awsClient);
 })(window.sequentialReadPasswordManager, window, document);
 
-(function(app, document, undefined){
+(function(app, document, window, undefined){
   app.modalService = new (function ModalService() {
+
+    var modalIsOpen = false;
+    var enterKeyAction;
+    var escapeKeyAction;
+    var KEYCODE_ESCAPE = 27;
+    var KEYCODE_ENTER = 13;
+
+    window.addEventListener("keydown", (event) => {
+      if(event.keyCode == KEYCODE_ENTER && enterKeyAction) {
+        enterKeyAction();
+      }
+      if(event.keyCode == KEYCODE_ESCAPE && escapeKeyAction) {
+        escapeKeyAction();
+      }
+    }, false);
+
     this.open = (title, body, controller, buttons) => {
       return new Promise((resolve, reject) => {
+        modalIsOpen = true;
         document.getElementById('modal-container').style.display = 'block';
         document.getElementById('modal-title').innerHTML = title;
         document.getElementById('modal-body').innerHTML = body;
         var footer = document.getElementById('modal-footer');
 
         var closeModal = () => {
+          modalIsOpen = false;
+          enterKeyAction = null;
+          escapeKeyAction = null;
           document.getElementById('modal-container').style.display = 'none';
           footer.innerHTML = '';
         };
@@ -276,7 +296,18 @@
           }
           buttonElement.style.float = "right";
           buttonElement.innerHTML = button.innerHTML;
-          buttonElement.onclick = () => button.onclick(buttonResolve, buttonReject);
+          var clickAction = () => {
+            if(!buttonElement.disabled) {
+              button.onclick(buttonResolve, buttonReject);
+            }
+          };
+          buttonElement.onclick = clickAction;
+          if(button.enterKey) {
+            enterKeyAction = clickAction;
+          }
+          if(button.escapeKey) {
+            escapeKeyAction = clickAction;
+          }
           footer.appendChild(buttonElement);
         });
 
@@ -285,7 +316,7 @@
     };
 
   })();
-})(window.sequentialReadPasswordManager, document);
+})(window.sequentialReadPasswordManager, document, window);
 
 
 (function(app, window, document, undefined){
@@ -298,11 +329,13 @@
         `<div>
           <span class="yavascript"></span>
         </div>
-        ${err ? err.name : ''}: ${message || err.message} at ${fileName}:${lineNumber}
+        ${message || err.message} at ${fileName}:${lineNumber}
         `,
         (resolve, reject) => {},
         [{
           innerHTML: "Ok",
+          enterKey: true,
+          escapeKey: true,
           onclick: (resolve, reject) => resolve()
         }]
       )
@@ -411,23 +444,29 @@
         "New File",
         "Name:<br/><input id=\"new-file-name\" type=\"text\" style=\"width:calc(100% - 20px)\"></input>",
         (resolve, reject) => {
+
           document.getElementById('new-file-create-button').disabled = true;
           var updateDisabled = () => {
             var newName = document.getElementById('new-file-name').value.trim();
             var newId = cryptoService.sha256Hex(newName);
             var idAlreadyExists = this.fileListDocument.files.filter(x => x.id == newId).length > 0;
-            document.getElementById('new-file-create-button').disabled = newName.length == 0 || idAlreadyExists;
+            var newFileCreateButton = document.getElementById('new-file-create-button');
+            if(newFileCreateButton){
+              newFileCreateButton.disabled = newName.length == 0 || idAlreadyExists;
+            }
           };
           document.getElementById('new-file-name').onkeyup = updateDisabled;
           document.getElementById('new-file-name').onchange = updateDisabled;
         },
         [{
           innerHTML: "Cancel",
+          escapeKey: true,
           onclick: (resolve, reject) => reject()
         },
         {
           id: "new-file-create-button",
           innerHTML: "Create",
+          enterKey: true,
           onclick: (resolve, reject) => resolve(document.getElementById('new-file-name').value.trim())
         }]
       ).then(
@@ -531,12 +570,22 @@
       }, 100);
     };
 
-    document.getElementById('splash-continue-button').onclick = () => {
+    var onContinueClicked = () => {
       cryptoService.setSecret(document.getElementById('encryption-secret').value);
       document.getElementById('logout-link-container').style.display = "inline";
       document.getElementById('encryption-secret').value = '';
       navController.navigate('file-list-content');
       fileListController.load();
     };
+
+    var KEYCODE_ENTER = 13;
+    window.addEventListener("keydown", (event) => {
+      if(event.keyCode == KEYCODE_ENTER && document.getElementById('splash-content').style.display != 'none') {
+        onContinueClicked();
+      }
+    }, false);
+
+    document.getElementById('splash-continue-button').onclick = onContinueClicked;
+
   })(app.cryptoService, app.navController, app.fileListController);
 })(window.sequentialReadPasswordManager, window, document);
