@@ -1,6 +1,15 @@
 
 # SequentialRead Password Manager
 
+
+This is a Golang / HTML5  / vanilla JavaScript web-application which stores encrypted text files in three places:
+
+ - `localStorage` in the browser
+ - on disk next to the HTTP server binary
+ - in an Amazon S3 bucket
+
+![screenshot](screenshot.png)
+
 [Try it! (https://pwm.sequentialread.com) ](https://pwm.sequentialread.com)
 
 OR run it yourself in docker:
@@ -14,13 +23,7 @@ docker run \
   sequentialread/sequentialread-password-manager:0.0.0
 ```
 
-This is a Golang / HTML5  / vanilla JavaScript web-application which stores encrypted text files in three places:
-
- - `localStorage` in the browser
- - on disk next to the HTTP server binary
- - in an Amazon S3 bucket
-
-![screenshot](screenshot.png)
+See "Hosting it yourself" for more information.
 
 ## Security
 
@@ -50,6 +53,54 @@ It was designed that way to strengthen the claim that "everything it sends out f
 
  `bedrooms confirmation decor generic wondering temperatures bm retreat beer`
 
- ## License
+## License
 
  This software is provided "AS-IS" under the MIT license. For more information see the `LICENSE` file.
+
+## Hosting it yourself
+
+Currently you will have to modify the s3 bucket in the code since its hardcoded. (`sequentialread-pwm` in application.js)
+
+You should create a separate IAM user in AWS which only has access to the bucket. This is the policy I used for that user:
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetBucketLocation"
+            ],
+            "Resource": "arn:aws:s3:::sequentialread-pwm"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:DeleteObject"
+            ],
+            "Resource": "arn:aws:s3:::sequentialread-pwm/*"
+        }
+    ]
+}
+```
+
+You will also need to configure CORS on the bucket. This is the CORS configuration I used on the bucket:
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+    <CORSRule>
+        <AllowedOrigin>*</AllowedOrigin>
+        <AllowedMethod>GET</AllowedMethod>
+        <AllowedMethod>DELETE</AllowedMethod>
+        <AllowedMethod>PUT</AllowedMethod>
+        <MaxAgeSeconds>3000</MaxAgeSeconds>
+        <AllowedHeader>Authorization</AllowedHeader>
+        <AllowedHeader>x-amz-content-sha256</AllowedHeader>
+        <AllowedHeader>x-amz-date</AllowedHeader>
+    </CORSRule>
+</CORSConfiguration>
+```
