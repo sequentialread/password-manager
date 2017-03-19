@@ -50,7 +50,7 @@
       <br/>
       SEQUENTIAL READ PASSWORD MANAGER IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. <br/>
       For more information see the <a href="https://github.com/sequentialread/password-manager/blob/master/LICENSE">LICENSE file</a> on GitHub.<br/>
-      If you want to rely on this application in the long term I advise you to build and host it yourself with your own AWS account.
+      If you want to rely on this application in the long term I advise you to <a href="https://hub.docker.com/r/sequentialread/sequentialread-password-manager/"> host it yourself</a> with your own AWS account.
     </p>
   </div>
   <div class="main content" id="file-list-content" style="display:none;">

@@ -3,6 +3,17 @@
 
 [Try it! (https://pwm.sequentialread.com) ](https://pwm.sequentialread.com)
 
+OR run it yourself in docker:
+
+```
+docker run \
+  -p 8073:8073 \
+  -v "/Users/exampleUser/Desktop/encrypted-passwords:/data" \
+  -e SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE \
+  -e SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+  sequentialread/sequentialread-password-manager:0.0.0
+```
+
 This is a Golang / HTML5  / vanilla JavaScript web-application which stores encrypted text files in three places:
 
  - `localStorage` in the browser
@@ -17,7 +28,7 @@ First and foremost, the application is easy to audit since it has only one depen
 
 There is nothing that pulls in dependencies, no bundling step, etc. There is only one place where `XMLHttpRequest` is created, and the request body is encrypted in the same place. Same goes for `localStorage`.
 
-It was designed that way to strengthen the claim that "everything it sends out from the javascript VM is encrypted with the key you chose".
+It was designed that way to strengthen the claim that "everything it sends out from the javascript VM is AES encrypted with the key you chose".
 
 ## High Avaliability by Design
 
