@@ -46,14 +46,15 @@ func storage(response http.ResponseWriter, request *http.Request) {
 		file, err := os.OpenFile(filepath.Join(dataPath, filename), os.O_RDWR|os.O_CREATE, 0755)
 		if err != nil {
 			response.WriteHeader(500)
-			fmt.Fprint(response, "500 internal server error: %s", err)
+			fmt.Fprintf(response, "500 internal server error: %s", err)
 			return
 		}
 		defer file.Close()
 		defer request.Body.Close()
 		io.Copy(file, request.Body)
 	} else if request.Method == "DELETE" {
-
+		response.WriteHeader(500)
+		fmt.Fprint(response, "500 not implemented yet")
 	} else {
 		response.Header().Add("Allow", "GET, PUT, DELETE")
 		response.WriteHeader(405)

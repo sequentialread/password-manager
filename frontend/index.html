@@ -39,7 +39,7 @@
   </div>
   <div class="main content" id="file-list-content" style="display:none;">
     <h3>Files</h3>
-    <div style="height:20px; width:100%;">
+    <div style="height:40px; width:100%;">
       <button id="new-file-button" style="float:right;">
         New File...
       </button>
@@ -47,11 +47,24 @@
     <div id="file-list">
     </div>
   </div>
-  <div class="main content" id="file-content" style="display:none;">
-    <h3></h3>
-    <ul id="file-list">
-    </ul>
+  <div class="main content" id="file-detail-content" style="display:none;">
+    <h3>
+      <a href="#" id="file-detail-back-link">Files</a> &gt;
+      <span id="file-detail-file-name"></span>
+    </h3>
+    <div style="height:40px;">
+      <div class="saved-status-indicator" id="saved-status-indicator">Saved</div>
+    </div>
+    <textarea id="file-content"></textarea>
   </div>
+  <div class="modal-container" id="modal-container" style="display:none;">
+    <div class="modal content" >
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div id="modal-footer" style="height:50px;"></div>
+    </div>
+  </div>
+
   <script src="application.js"></script>
 </body>
 </html>

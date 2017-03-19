@@ -25,15 +25,17 @@
     var currentUserSecretId = null;
     this.setSecret = (secret) => {
       currentUserSecret = sjcl.hash.sha256.hash(secret);
-      currentUserSecretId = sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(currentUserSecret));
+      currentUserSecretId = this.sha256Hex(currentUserSecret);
     };
 
-    this.getSecretId = () => currentUserSecretId;
+    this.getKeyId = () => currentUserSecretId;
 
     this.encrypt = (plaintextString) => sjcl.encrypt(currentUserSecret, plaintextString);
     this.decrypt = (cyphertextString) => sjcl.decrypt(currentUserSecret, cyphertextString);
 
     this.hasSecret = () => currentUserSecret != null;
+
+    this.sha256Hex = (input) => sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(input))
 
     this.getEntropizer = () => {
       this.entropizer = {entropyScore:0};
@@ -126,15 +128,54 @@
   })(app.cryptoService);
 })(window.sequentialReadPasswordManager, window, document);
 
+(function(app, document, undefined){
+  app.modalService = new (function modalService() {
+    this.open = (title, body, controller, buttons) => {
+      return new Promise((resolve, reject) => {
+        document.getElementById('modal-container').style.display = 'block';
+        document.getElementById('modal-title').innerHTML = title;
+        document.getElementById('modal-body').innerHTML = body;
+        var footer = document.getElementById('modal-footer');
 
+        var closeModal = () => {
+          document.getElementById('modal-container').style.display = 'none';
+          footer.innerHTML = '';
+        };
 
+        var buttonResolve = (arg) => {
+          closeModal();
+          resolve(arg);
+        };
+        var buttonReject = (arg) => {
+          closeModal();
+          reject(arg);
+        };
+
+        buttons.reverse();
+        buttons.forEach(button => {
+          var buttonElement = document.createElement("button");
+          if(button.id) {
+            buttonElement.id = button.id;
+          }
+          buttonElement.style.float = "right";
+          buttonElement.innerHTML = button.innerHTML;
+          buttonElement.onclick = () => button.onclick(buttonResolve, buttonReject);
+          footer.appendChild(buttonElement);
+        });
+
+        controller(buttonResolve, buttonReject);
+      });
+    };
+
+  })();
+})(window.sequentialReadPasswordManager, document);
 
 (function(app, document, undefined){
   app.navController = new (function NavController() {
     var routes = [
       'splash-content',
       'file-list-content',
-      'file-content'
+      'file-detail-content'
     ];
     this.navigate = (target) => {
       routes.forEach(route => document.getElementById(route).style.display = (route == target ? 'block' : 'none'));
@@ -143,24 +184,107 @@
 })(window.sequentialReadPasswordManager, document);
 
 (function(app, document, undefined){
-  app.fileListController = new (function FileListController(storageService, cryptoService) {
+  app.fileDetailController = new (function FileDetailController(storageService, cryptoService, navController) {
+
+
+    document.getElementById('file-detail-back-link').onclick = () => {
+      this.ensureSaved()
+      .then(
+        () => navController.navigate('file-list-content'),
+        () => {} // TODO handle errors
+      );
+    };
+
+    this.ensureSaved = () => {
+      return Promise.resolve(); // TODO implement
+    };
+
+    this.load = (file) => {
+      this.file = file;
+      document.getElementById('file-detail-file-name').innerHTML = file.name;
+      if(file.content) {
+        document.getElementById('file-content').innerText = file.name;
+      }
+    };
+
+  })(app.storageService, app.cryptoService, app.navController);
+})(window.sequentialReadPasswordManager, document);
+
+(function(app, document, undefined){
+  app.fileListController = new (function FileListController(
+    storageService,
+    modalService,
+    cryptoService,
+    navController,
+    fileDetailController
+  ) {
 
     this.fileListDocument = {
       version: 1,
       files: []
     };
 
+    document.getElementById('new-file-button').onclick = () => {
+      modalService.open(
+        "New File",
+        "Name:<br/><input id=\"new-file-name\" type=\"text\" style=\"width:calc(100% - 20px)\"></input>",
+        (resolve, reject) => {
+          document.getElementById('new-file-create-button').disabled = true;
+          var updateDisabled = () => {
+            var newName = document.getElementById('new-file-name').value.trim();
+            var newId = cryptoService.sha256Hex(newName);
+            var idAlreadyExists = this.fileListDocument.files.filter(x => x.id == newId).length > 0;
+            document.getElementById('new-file-create-button').disabled = newName.length == 0 || idAlreadyExists;
+          };
+          document.getElementById('new-file-name').onkeyup = updateDisabled;
+          document.getElementById('new-file-name').onchange = updateDisabled;
+        },
+        [{
+          innerHTML: "Cancel",
+          onclick: (resolve, reject) => reject()
+        },
+        {
+          id: "new-file-create-button",
+          innerHTML: "Create",
+          onclick: (resolve, reject) => resolve(document.getElementById('new-file-name').value.trim())
+        }]
+      ).then(
+        (newFileName) => {
+          var newFile = {
+            id: cryptoService.sha256Hex(newFileName),
+            name: newFileName
+          };
+          storageService.put(newFile.id, newFile)
+          .then(
+            () => {
+              this.fileListDocument.files.push(newFile);
+              return storageService.put(cryptoService.getKeyId(), this.fileListDocument)
+            },
+            () => null, //TODO error handler
+          ).then(
+            () => {
+              renderFileList(this.fileListDocument);
+              navController.navigate('file-detail-content');
+              fileDetailController.load(newFile);
+            },
+            () => null, //TODO error handler
+          );
+        },
+        () => {} // cancel is a no-op
+      );
+    };
+
     this.load = () => {
-      storageService.get(cryptoService.getSecretId())
+      storageService.get(cryptoService.getKeyId())
       .then(
         renderFileList,
         (xmlHttpRequest) => {
           if(xmlHttpRequest.status == 404) {
-            storageService.put(cryptoService.getSecretId(), this.fileListDocument)
+            storageService.put(cryptoService.getKeyId(), this.fileListDocument)
             .then(
               () => renderFileList(this.fileListDocument),
               () => null, //TODO error handler
-            )
+            );
           } else {
             //TODO error handler
           }
@@ -170,14 +294,41 @@
 
     var renderFileList = (fileListDocument) => {
       this.fileListDocument = fileListDocument;
+      var fileListElement = document.getElementById('file-list');
       if(this.fileListDocument.files.length == 0) {
-        document.getElementById('file-list').innerHTML = 'There are currently no files.';
+        fileListElement.innerHTML = 'There are currently no files.';
       } else {
-        //TODO render files html
+        fileListElement.innerHTML = '';
+        var fileListUl = document.createElement('ul');
+        fileListElement.appendChild(fileListUl);
+        this.fileListDocument.files.forEach(file => {
+          var fileLi = document.createElement('li');
+          var fileLink = document.createElement('a');
+          fileLink.innerText = file.name;
+          fileLink.href = "#";
+          fileLink.onclick = () => {
+            storageService.get(file.id)
+            .then(
+              (file) => {
+                navController.navigate('file-detail-content');
+                fileDetailController.load(file);
+              },
+              () => null, //TODO error handler
+            );
+          };
+          fileLi.appendChild(fileLink);
+          fileListUl.appendChild(fileLi);
+        });
       }
     };
 
-  })(app.storageService, app.cryptoService);
+  })(
+    app.storageService,
+    app.modalService,
+    app.cryptoService,
+    app.navController,
+    app.fileDetailController
+  );
 })(window.sequentialReadPasswordManager, document);
 
 (function(app, window, document, undefined){
