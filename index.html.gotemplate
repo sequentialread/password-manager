@@ -20,7 +20,15 @@
   <link rel="stylesheet" type="text/css" href="static/application.css?v={{.Version}}">
 </head>
 <body>
-  <div class="header">Sequential Read Password Manager</div>
+  <div class="header">
+    <h3>Sequential Read Password Manager</h3>
+    <div style="float:right; padding-right:20px;">
+      <a href="https://git.sequentialread.com/forest/sequentialread-password-manager">source code and documentation</a>
+      <span id="logout-link-container" style="display:none;">
+        | <a href="#" id="logout-link">log out</a>
+      </span>
+    </div>
+  </div>
   <div class="header-shadow"></div>
   <div class="splash content" id="splash-content">
     <h3>Enter/Generate your Secret Encryption Key</h3>
@@ -39,6 +47,10 @@
       This is an encryption key, not a password. Save it somewhere <u>secure</u> so you don't lose it. We can't recover it for you.<br/>
       This is the only thing protecting the data you enter here from being publicly avaliable, so it should be <u>extremely long and hard to guess</u>.<br/>
       It needs to be so long that even a supercomputer can't guess it. It should contain about 256 bits of entropy. If you are in doubt click generate.<br/>
+      <br/>
+      SEQUENTIAL READ PASSWORD MANAGER IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. <br/>
+      For more information see the <a href="https://github.com/sequentialread/password-manager/blob/master/LICENSE">LICENSE file</a> on GitHub.<br/>
+      If you want to rely on this application in the long term I advise you to build and host it yourself with your own AWS account.
     </p>
   </div>
   <div class="main content" id="file-list-content" style="display:none;">

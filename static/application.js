@@ -187,7 +187,8 @@
         request('GET', `${s3InterceptorSymbol}/${id}`)
       ]).then((results) => {
         return new Promise((resolve, reject) => {
-          var localCopy = JSON.parse(cryptoService.decrypt(window.localStorage[`${localStorageKeyPrefix}${id}`]));
+          var localCopyCiphertext = window.localStorage[`${localStorageKeyPrefix}${id}`];
+          var localCopy = localCopyCiphertext ? JSON.parse(cryptoService.decrypt(localCopyCiphertext)) : null;
           var sequentialreadCopy = results[0];
           var s3Copy = results[1];
           var allCopies = [];
@@ -217,7 +218,7 @@
             return;
           }
 
-          if(allCopies.filter(x => x.lastUpdated < latestCopy.lastUpdated).length > 0) {
+          if(allCopies.filter(x => x.lastUpdated < latestCopy.lastUpdated).length > 0 || allCopies.length < 3) {
             this.put(id, latestCopy).then(() => resolve(latestCopy));
           } else {
             resolve(latestCopy);
@@ -228,7 +229,7 @@
     this.put = (id, content) => {
       content.lastUpdated = new Date().getTime();
       // request() ALWAYS resolves, if it fails it will resolve a RequestFailure.
-      window.localStorage[`${localStorageKeyPrefix}${id}`] = JSON.stringify(cryptoService.encrypt(JSON.stringify(content)));
+      window.localStorage[`${localStorageKeyPrefix}${id}`] = cryptoService.encrypt(JSON.stringify(content));
       return Promise.all([
         request('PUT', `${baseUrl}/${id}`, {'Content-Type': 'application/json'}, content),
         request('PUT', `${s3InterceptorSymbol}/${id}`, {'Content-Type': 'application/json'}, content)
@@ -320,8 +321,11 @@
   })(app.modalService);
 })(window.sequentialReadPasswordManager, window);
 
-(function(app, document, undefined){
+(function(app, window, document, undefined){
   app.navController = new (function NavController() {
+
+    document.getElementById('logout-link').onclick = () => window.location = window.location.origin;
+
     var routes = [
       'splash-content',
       'file-list-content',
@@ -331,7 +335,7 @@
       routes.forEach(route => document.getElementById(route).style.display = (route == target ? 'block' : 'none'));
     };
   })();
-})(window.sequentialReadPasswordManager, document);
+})(window.sequentialReadPasswordManager, window, document);
 
 (function(app, document, window, undefined){
   app.fileDetailController = new (function FileDetailController(storageService, cryptoService, navController) {
@@ -526,6 +530,7 @@
 
     document.getElementById('splash-continue-button').onclick = () => {
       cryptoService.setSecret(document.getElementById('encryption-secret').value);
+      document.getElementById('logout-link-container').style.display = "inline";
       document.getElementById('encryption-secret').value = '';
       navController.navigate('file-list-content');
       fileListController.load();

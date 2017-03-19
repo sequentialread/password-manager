@@ -55,6 +55,11 @@ textarea {
   padding: 10px;
 }
 
+u {
+  font-weight: bold;
+  color: red;
+}
+
 .header {
   color: white;
   background: #9359fa;
@@ -62,8 +67,20 @@ textarea {
   height: 20px;
   padding:12px;
   padding-top:6px;
+}
+.header h3 {
+  color: white;
   font-size:18px;
   font-weight: bold;
+  display: inline-block;
+  padding: 0;
+  margin: 0;
+}
+.header a {
+  color: white;
+}
+.header a:visited {
+  color: white;
 }
 .header-shadow {
   height: 3px;
@@ -112,7 +129,7 @@ textarea {
 }
 .modal {
   margin-top: 100px;
-  max-width: 800px;
+  max-width: 500px;
 }
 #file-list-content ul {
   list-style-type: none;
@@ -144,7 +161,7 @@ textarea {
 
 .yavascript {
   display: inline-block;
-  
+
   width: 100px;
   height: 102px;
   background-repeat: no-repeat;

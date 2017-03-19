@@ -17,13 +17,15 @@ First and foremost, the application is easy to audit since it has only one depen
 
 There is nothing that pulls in dependencies, no bundling step, etc. There is only one place where `XMLHttpRequest` is created, and the request body is encrypted in the same place. Same goes for `localStorage`.
 
-It was designed that way to strengthen the claim that "everything it sends out from the javascript VM is encrypted".
+It was designed that way to strengthen the claim that "everything it sends out from the javascript VM is encrypted with the key you chose".
 
-## Fault-tolerance
+## High Avaliability by Design
 
  It uses the [HTML5 Application Cache](https://webcache.googleusercontent.com/search?q=cache:ih81QOzVxasJ:https://alistapart.com/article/application-cache-is-a-douchebag) to ensure that even if my server goes down, the app still loads.
 
  It also has its own AWS Credential with access to the bucket, so you can still access S3 if my server goes down.
+
+ It will also work even if your device has no internet connection, of course any changes will not be sent to my server or to S3 until you can connect again.
 
  It uses a naive approach to keep all 3 data stores in sync: When writing, it will attempt to write to all 3 and tolerate failures. When reading, it will compare the `lastUpdated` timestamps on all versions that it received, and if they don't match, it will issue a `PUT` with the most up-to-date version.
 
