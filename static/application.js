@@ -187,7 +187,7 @@
         request('GET', `${s3InterceptorSymbol}/${id}`)
       ]).then((results) => {
         return new Promise((resolve, reject) => {
-          var localCopy = JSON.parse(window.localStorage[`${localStorageKeyPrefix}${id}`]);
+          var localCopy = JSON.parse(cryptoService.decrypt(window.localStorage[`${localStorageKeyPrefix}${id}`]));
           var sequentialreadCopy = results[0];
           var s3Copy = results[1];
           var allCopies = [];
@@ -228,7 +228,7 @@
     this.put = (id, content) => {
       content.lastUpdated = new Date().getTime();
       // request() ALWAYS resolves, if it fails it will resolve a RequestFailure.
-      window.localStorage[`${localStorageKeyPrefix}${id}`] = JSON.stringify(content);
+      window.localStorage[`${localStorageKeyPrefix}${id}`] = JSON.stringify(cryptoService.encrypt(JSON.stringify(content)));
       return Promise.all([
         request('PUT', `${baseUrl}/${id}`, {'Content-Type': 'application/json'}, content),
         request('PUT', `${s3InterceptorSymbol}/${id}`, {'Content-Type': 'application/json'}, content)
