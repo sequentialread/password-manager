@@ -22,7 +22,7 @@ docker run \
   -e SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
   -e SEQUENTIAL_READ_PWM_S3_BUCKET_NAME=my-encrypted-password-bucket \
   -e SEQUENTIAL_READ_PWM_S3_BUCKET_REGION=us-west-2 \
-  sequentialread/sequentialread-password-manager:0.0.0
+  sequentialread/sequentialread-password-manager:0.0.2
 ```
 
 See "Hosting it yourself" for more information.
