@@ -7,7 +7,9 @@
     // global namespace where we will be putting everything
     window.sequentialReadPasswordManager = {
       AWSAccessKeyId: "{{.AWSAccessKeyId}}",
-      AWSSecretAccessKey: "{{.AWSSecretAccessKey}}"
+      AWSSecretAccessKey: "{{.AWSSecretAccessKey}}",
+      S3BucketName: "{{.S3BucketName}}",
+      S3BucketRegion: "{{.S3BucketRegion}}"
     };
     // a fake implementation of AMD just so I can use use sjcl.js (Stanford JavaScript Crypto Library) without any modifications
     window.define = function(dependencies, factory) {

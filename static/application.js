@@ -86,16 +86,13 @@
 
 
 (function(app, window, document, undefined){
-  app.storageService = new (function StorageService(cryptoService, awsClient) {
-
+  app.storageService = new (function StorageService(cryptoService, awsClient, awsS3BucketName, awsS3BucketRegion) {
+    
     var baseUrl = "/storage";
 
     var s3InterceptorSymbol = "/awsS3";
 
     var localStorageKeyPrefix = "sequentialread-pwm:";
-
-    var awsS3BucketName = 'sequentialread-pwm';
-    var awsS3BucketRegion = 'us-west-2';
 
     var requestsCurrentlyInFlight = 0;
 
@@ -242,7 +239,7 @@
         request('DELETE', `${s3InterceptorSymbol}/${id}`)
       ]).then(() => null);
     };
-  })(app.cryptoService, app.awsClient);
+  })(app.cryptoService, app.awsClient, app.S3BucketName, app.S3BucketRegion);
 })(window.sequentialReadPasswordManager, window, document);
 
 (function(app, document, window, undefined){

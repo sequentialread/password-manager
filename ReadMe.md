@@ -20,6 +20,8 @@ docker run \
   -v "/Users/exampleUser/Desktop/encrypted-passwords:/data" \
   -e SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE \
   -e SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+  -e SEQUENTIAL_READ_PWM_S3_BUCKET_NAME=my-encrypted-password-bucket \
+  -e SEQUENTIAL_READ_PWM_S3_BUCKET_REGION=us-west-2 \
   sequentialread/sequentialread-password-manager:0.0.0
 ```
 
@@ -58,8 +60,6 @@ It was designed that way to strengthen the claim that "everything it sends out f
  This software is provided "AS-IS" under the MIT license. For more information see the `LICENSE` file.
 
 ## Hosting it yourself
-
-Currently you will have to modify the s3 bucket in the code since its hardcoded. (`sequentialread-pwm` in application.js)
 
 You should create a separate IAM user in AWS which only has access to the bucket. This is the policy I used for that user:
 

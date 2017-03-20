@@ -26,6 +26,8 @@ var application Application
 
 type Application struct {
 	Version            string
+	S3BucketName       string
+	S3BucketRegion     string
 	AWSAccessKeyId     string
 	AWSSecretAccessKey string
 }
@@ -154,6 +156,8 @@ func reloadStaticFiles() {
 	})[:6]
 	application.AWSAccessKeyId = os.ExpandEnv("$SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID")
 	application.AWSSecretAccessKey = os.ExpandEnv("$SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY")
+	application.S3BucketName = os.ExpandEnv("$SEQUENTIAL_READ_PWM_S3_BUCKET_NAME")
+	application.S3BucketRegion = os.ExpandEnv("$SEQUENTIAL_READ_PWM_S3_BUCKET_REGION")
 
 	indexTemplate = loadTemplate("index.html.gotemplate")
 	appcacheTemplate = loadTemplate("index.appcache.gotemplate")
