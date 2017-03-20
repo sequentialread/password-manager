@@ -87,7 +87,7 @@
 
 (function(app, window, document, undefined){
   app.storageService = new (function StorageService(cryptoService, awsClient, awsS3BucketName, awsS3BucketRegion) {
-    
+
     var baseUrl = "/storage";
 
     var s3InterceptorSymbol = "/awsS3";
@@ -476,6 +476,9 @@
           .then(
             () => {
               this.fileListDocument.files.push(newFile);
+              this.fileListDocument.files.sort((a, b) => {
+                return a.name.localeCompare(b.name);
+              });
               return storageService.put(cryptoService.getKeyId(), this.fileListDocument)
             },
             () => null //TODO error handler
@@ -515,9 +518,6 @@
         fileListElement.innerHTML = '';
         var fileListUl = document.createElement('ul');
         fileListElement.appendChild(fileListUl);
-        this.fileListDocument.files.sort((a, b) => {
-          a.name.localeCompare(b.name);
-        });
         this.fileListDocument.files.forEach(file => {
           var fileLi = document.createElement('li');
           var fileLink = document.createElement('a');
