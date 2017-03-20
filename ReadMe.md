@@ -49,9 +49,9 @@ It was designed that way to strengthen the claim that "everything it sends out f
 
 ## Encryption Key User Interface Disclaimer
 
- You are allowed to use whatever seed you want for your 256 bit AES key. If you pick a weak seed and get hacked, that is your fault. The application warned you about it. It was even red, bold and underlined!
+ You are allowed to use whatever seed you want for your AES key. If you pick a weak seed and get hacked, that is your fault. The application warned you about it. It was even red, bold and underlined!
 
- The application includes an HMAC/mouse-movement based entropy generator to create a secure key encoded in base 10,000. It will appear as a collection of a few english words/phrases. An example:
+ The application includes an HMAC-SHA256/mouse-movement based entropy generator to create a secure ~128 bit key, encoded in base 10,000. It will appear as a collection of a few english words/phrases. An example:
 
  `bedrooms confirmation decor generic wondering temperatures bm retreat beer`
 
