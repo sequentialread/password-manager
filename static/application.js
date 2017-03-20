@@ -90,7 +90,7 @@
 
     var baseUrl = "/storage";
 
-    var s3InterceptorSymbol = "/awsS3";
+    var s3InterceptorSymbol = "/awsS3/";
 
     var localStorageKeyPrefix = "sequentialread-pwm:";
 
@@ -154,14 +154,9 @@
         // AWS S3 request interceptor
         if(url.startsWith(s3InterceptorSymbol)) {
           var path = url.replace(s3InterceptorSymbol, '');
-          if(path.startsWith('/')){
-            path = path.substring(1);
-          }
           var s3Request = awsClient.s3Request(method, awsS3BucketRegion, awsS3BucketName, path, content);
           headers = s3Request.headers;
           url = s3Request.endpointUri;
-
-          //console.log(url, headers);
         }
 
         httpRequest.open(method, url);
@@ -170,6 +165,7 @@
         Object.keys(headers)
           .filter(key => key.toLowerCase() != 'host' && key.toLowerCase() != 'content-length')
           .forEach(key => httpRequest.setRequestHeader(key, headers[key]));
+
         if(content) {
           httpRequest.send(content);
         } else {
@@ -181,7 +177,7 @@
       // request() ALWAYS resolves, if it fails it will resolve a RequestFailure.
       return Promise.all([
         request('GET', `${baseUrl}/${id}`),
-        request('GET', `${s3InterceptorSymbol}/${id}`)
+        request('GET', `${s3InterceptorSymbol}${id}`)
       ]).then((results) => {
         return new Promise((resolve, reject) => {
           var localCopyCiphertext = window.localStorage[`${localStorageKeyPrefix}${id}`];
@@ -229,14 +225,14 @@
       window.localStorage[`${localStorageKeyPrefix}${id}`] = cryptoService.encrypt(JSON.stringify(content));
       return Promise.all([
         request('PUT', `${baseUrl}/${id}`, {'Content-Type': 'application/json'}, content),
-        request('PUT', `${s3InterceptorSymbol}/${id}`, {'Content-Type': 'application/json'}, content)
+        request('PUT', `${s3InterceptorSymbol}${id}`, {'Content-Type': 'application/json'}, content)
       ]).then(() => content)
     };
     this.delete = (id) => {
       window.localStorage.removeItem(`${localStorageKeyPrefix}${id}`);
       return Promise.all([
         request('DELETE', `${baseUrl}/${id}`),
-        request('DELETE', `${s3InterceptorSymbol}/${id}`)
+        request('DELETE', `${s3InterceptorSymbol}${id}`)
       ]).then(() => null);
     };
   })(app.cryptoService, app.awsClient, app.S3BucketName, app.S3BucketRegion);
