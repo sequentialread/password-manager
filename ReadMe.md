@@ -55,6 +55,8 @@ It was designed that way to strengthen the claim that "everything it sends out f
 
  `bedrooms confirmation decor generic wondering temperatures bm retreat beer`
 
+ Assuming you could use [top-of-the-line hardware](https://en.bitcoin.it/wiki/Mining_hardware_comparison) (A Bitmain Antminer S9 in this case), how long would it take to guess every possible combination of words? [A very, VERY long time](https://www.wolframalpha.com/input/?i=(10000%5E9)%2F(1.4e%2B13)+seconds+in+years)
+
 ## License
 
  This software is provided "AS-IS" under the MIT license. For more information see the `LICENSE` file.
