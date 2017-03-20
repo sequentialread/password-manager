@@ -43,21 +43,25 @@ It was designed that way to strengthen the claim that "everything it sends out f
 
  It will also work even if your device has no internet connection, of course any changes will not be sent to my server or to S3 until you can connect again.
 
- It uses a naive approach to keep all 3 data stores in sync: When writing, it will attempt to write to all 3 and tolerate failures. When reading, it will compare the `lastUpdated` timestamps on all versions that it received, and if they don't match, it will issue a `PUT` with the most up-to-date version.
+ It uses a naive approach to keep all 3 data stores in sync: When writing, it will attempt to write to all 3 and tolerate failures. When reading, it will compare the `lastUpdated` timestamps on all versions that it received, and if they don't match or if one is missing, it will issue a `PUT` with the most up-to-date version.
 
  That means if you happen to make conflicting changes, there is no real conflict resolution. The latest one wins.
 
 ## Encryption Key User Interface Disclaimer
 
- You are allowed to use whatever seed you want for your AES key. If you pick a weak seed and get hacked, that is your fault. The application warned you about it. It was even red, bold and underlined!
+You are allowed to use whatever seed you want for your AES key. If you pick a weak seed and get hacked, that is your fault. The application warned you about it. It was even red, bold and underlined!
 
- The application includes an HMAC-SHA256/mouse-movement based entropy generator to create a secure ~128 bit key, encoded in base 10,000. It will appear as a collection of a few english words/phrases. An example:
+The application includes a timestamp + mouse-movement + SHA256 based entropy generator to create a secure ~128 bit key, encoded in base 10,000. It will appear as a collection of a few english words/phrases. An example:
 
- `bedrooms confirmation decor generic wondering temperatures bm retreat beer`
+`bedrooms confirmation decor generic wondering temperatures bm retreat beer`
 
- Assuming you could use [top-of-the-line hardware](https://en.bitcoin.it/wiki/Mining_hardware_comparison) (A Bitmain Antminer S9 in this case), how long would it take to guess every possible combination of words? [A very, VERY long time](https://www.wolframalpha.com/input/?i=(10000%5E9)%2F(1.4e%2B13)+seconds+in+years)
+Assuming the attacker had access to the ciphertext and could use [top-of-the-line hardware](https://en.bitcoin.it/wiki/Mining_hardware_comparison) (A Bitmain Antminer S9 in this case), how long would it take to guess every possible combination of words? [A very, VERY long time](https://www.wolframalpha.com/input/?i=(10000%5E9)%2F(1.4e%2B13)+seconds+in+years)
 
- For comparison, under the same scenario, a key with only 4 words would be cracked within **10 Minutes**.
+For comparison, under the same scenario, a key with only 4 words would be cracked within **10 Minutes**.
+
+Does that mean a key with 4 words is not secure enough? It might depend on the situation. 
+
+Casual remote attackers probably won't have access to the ciphertext since they would have to look at your localstorage or guess a gazzillion things over HTTP. I just put a scary disclaimer on the app since I don't want to be holding people's weakly encrypted data.
 
 ## License
 

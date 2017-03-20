@@ -46,9 +46,12 @@
       Continue
     </button>
     <p class="instructions">
-      This is an encryption key, not a password. Save it somewhere <u>secure</u> so you don't lose it. We can't recover it for you.<br/>
-      This is the only thing protecting the data you enter here from being publicly avaliable, so it should be <u>extremely long and hard to guess</u>.<br/>
-      It needs to be so long that even a supercomputer can't guess it. It should contain about 128 bits of entropy. If you are in doubt click generate.<br/>
+      This is an encryption key, not a password. Save it somewhere <u>secure</u> so you don't lose it. <u>No one can recover it for you</u>.<br/>
+      Unless you trust me and trust AWS, this is the only thing protecting the data you enter here from being publicly avaliable.<br/>
+      If you are super paranoid, it needs to be so long that even a supercomputer can't guess it. <br/>
+	  (about 128 bits of entropy, the generate button gives you that)<br/>
+	  <br/>
+	  If you trust me and you trust AWS, or you don't think anyone will be dusting off the ol' GPU farm to crack your passwords, then something like four words is probably fine.<br/>
       <br/>
       SEQUENTIAL READ PASSWORD MANAGER IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. <br/>
       For more information see the <a href="https://github.com/sequentialread/password-manager/blob/master/LICENSE">LICENSE file</a> on GitHub.<br/>
