@@ -38,7 +38,7 @@
       <span id="move-mouse-instruction" style="visibility: hidden;">Move your mouse around to generate entropy</span>
       <div class="progress-bar" id="entropy-progress-bar" style="width:0;"></div>
     </div>
-    <input id="encryption-secret" type="text" style="width:calc(100% - 20px);"></input>
+    <input id="encryption-secret" type="password" style="width:calc(100% - 20px);"></input>
     <button id="generate-encryption-secret-button">
       Generate new Encryption Secret
     </button>
@@ -46,7 +46,7 @@
       Continue
     </button>
     <p class="instructions">
-      This is an encryption key, not a password. Save it somewhere <u>secure</u> so you don't lose it. <u>No one can recover it for you</u>.<br/>
+      This is an encryption key seed, not a password. Save it somewhere <u>secure</u> so you don't lose it. <u>No one can recover it for you</u>.<br/>
       Unless you trust me and trust AWS, this is the only thing protecting the data you enter here from being publicly avaliable.<br/>
       If you are super paranoid, it needs to be so long that even a supercomputer can't guess it. <br/>
 	  (about 128 bits of entropy, the generate button gives you that)<br/>

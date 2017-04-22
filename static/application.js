@@ -176,8 +176,8 @@
     this.get = (id) => {
       // request() ALWAYS resolves, if it fails it will resolve a RequestFailure.
       return Promise.all([
-        request('GET', `${baseUrl}/${id}`),
-        request('GET', `${s3InterceptorSymbol}${id}`)
+        request('GET', `${baseUrl}/${id}`, {'Accept': 'application/json'}),
+        request('GET', `${s3InterceptorSymbol}${id}`, {'Accept': 'application/json'})
       ]).then((results) => {
         return new Promise((resolve, reject) => {
           var localCopyCiphertext = window.localStorage[`${localStorageKeyPrefix}${id}`];
@@ -556,6 +556,7 @@
         this.generatingNewSecretProgress = document.getElementById('entropy-progress-bar').style.width = `${entropizer.entropyScore}%`;
         if(entropizer.entropyScore >= 100) {
           document.getElementById('encryption-secret').value = entropizer.passphrase;
+          document.getElementById('encryption-secret').type = 'text';
           window.clearInterval(checkInterval);
           document.getElementById('move-mouse-instruction').style.visibility = 'hidden';
           document.getElementById('entropy-progress-bar').style.width = '0';
@@ -567,6 +568,7 @@
       cryptoService.setSecret(document.getElementById('encryption-secret').value);
       document.getElementById('logout-link-container').style.display = "inline";
       document.getElementById('encryption-secret').value = '';
+      document.getElementById('encryption-secret').type = 'password';
       navController.navigate('file-list-content');
       fileListController.load();
     };
