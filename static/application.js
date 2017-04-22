@@ -411,6 +411,7 @@
 
     this.load = (file) => {
       this.file = file;
+      lastFileContent = this.file.content;
       document.getElementById('file-detail-file-name').innerHTML = file.name;
       document.getElementById('file-content').value = file.content ? file.content : '';
     };
