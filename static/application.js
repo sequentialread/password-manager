@@ -5,6 +5,7 @@
   var lengthOfKeySegment = 4;
   var pixelDistanceRequiredForEntropy = 250;
   var hashCountRequiredForEntropy = 3;
+  var hashIndexVersion = 2;
 
   app.cryptoService = new (function CryptoService() {
     var lastKnownOffsetX = 0;
@@ -25,7 +26,7 @@
     var currentUserSecretId = null;
     this.setSecret = (secret) => {
       currentUserSecret = sjcl.hash.sha256.hash(secret);
-      currentUserSecretId = this.sha256Hex(currentUserSecret);
+      currentUserSecretId = `${sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(secret))}-${hashIndexVersion}`;
     };
 
     this.getKeyId = () => currentUserSecretId;
@@ -35,7 +36,7 @@
 
     this.hasSecret = () => currentUserSecret != null;
 
-    this.sha256Hex = (input) => sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(input))
+    this.hashWithSecretId = (input) => sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(`${currentUserSecretId}/${input}`));
 
     this.getEntropizer = () => {
       this.entropizer = {entropyScore:0};
@@ -468,7 +469,7 @@
           document.getElementById('new-file-create-button').disabled = true;
           var updateDisabled = () => {
             var newName = document.getElementById('new-file-name').value.trim();
-            var newId = cryptoService.sha256Hex(newName);
+            var newId = cryptoService.hashWithSecretId(newName);
             var idAlreadyExists = this.fileListDocument.files.filter(x => x.id == newId).length > 0;
             var newFileCreateButton = document.getElementById('new-file-create-button');
             if(newFileCreateButton){
@@ -492,7 +493,7 @@
       ).then(
         (newFileName) => {
           var newFile = {
-            id: cryptoService.sha256Hex(newFileName),
+            id: cryptoService.hashWithSecretId(newFileName),
             name: newFileName
           };
           storageService.put(newFile.id, newFile)
