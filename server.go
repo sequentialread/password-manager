@@ -47,8 +47,15 @@ func storage(response http.ResponseWriter, request *http.Request) {
 		fmt.Fprint(response, "400 filename must be a hexadecimal string")
 		return
 	}
+	fullPath := filepath.Join(dataPath, filename)
 	if request.Method == "GET" {
-		file, err := os.Open(filepath.Join(dataPath, filename))
+		_, err := os.Stat(fullPath)
+		if err != nil {
+			response.WriteHeader(404)
+			fmt.Fprint(response, "404 file not found")
+			return
+		}
+		file, err := os.Open(fullPath)
 		if err != nil {
 			response.WriteHeader(404)
 			fmt.Fprint(response, "404 file not found")
@@ -65,7 +72,7 @@ func storage(response http.ResponseWriter, request *http.Request) {
 			fmt.Fprintf(response, "500 %s", err)
 			return
 		}
-		err = ioutil.WriteFile(filepath.Join(dataPath, filename), bytes, 0644)
+		err = ioutil.WriteFile(fullPath, bytes, 0644)
 		if err != nil {
 			response.WriteHeader(500)
 			fmt.Fprintf(response, "500 %s", err)
