@@ -22,7 +22,7 @@ docker run \
   -e SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
   -e SEQUENTIAL_READ_PWM_S3_BUCKET_NAME=my-encrypted-password-bucket \
   -e SEQUENTIAL_READ_PWM_S3_BUCKET_REGION=us-west-2 \
-  sequentialread/sequentialread-password-manager:0.0.3
+  sequentialread/sequentialread-password-manager:1.0.0
 ```
 
 See "Hosting it yourself" for more information.
@@ -59,7 +59,7 @@ Assuming the attacker had access to the ciphertext and could use [top-of-the-lin
 
 For comparison, under the same scenario, a key with only 4 words would be cracked within **10 Minutes**.
 
-Does that mean a key with 4 words is not secure enough? It might depend on the situation. 
+Does that mean a key with 4 words is not secure enough? It might depend on the situation.
 
 Casual remote attackers probably won't have access to the ciphertext since they would have to look at your localstorage or guess a gazzillion things over HTTP. I just put a scary disclaimer on the app since I don't want to be holding people's weakly encrypted data.
 
