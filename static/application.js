@@ -124,10 +124,19 @@
             if(httpRequest.responseText.length == 0) {
               resolveAndPopInFlight();
             } else {
+              var jsonFailed = false;
               try {
                 resolveAndPopInFlight(JSON.parse(cryptoService.decrypt(httpRequest.responseText)));
               } catch (err) {
-                resolveAndPopInFlight(httpRequest.responseText);
+                jsonFailed  = true;
+              }
+              if(jsonFailed) {
+                try {
+                  resolveAndPopInFlight(cryptoService.decrypt(httpRequest.responseText));
+                } catch (err) {
+                  window.onerror(`unable to decrypt '${url}': ${err.message} `, null, null, null, err);
+                  resolveAndPopInFlight(new RequestFailure(httpRequest, false));
+                }
               }
             }
           } else if(httpRequest.status !== 0) {
@@ -181,7 +190,12 @@
       ]).then((results) => {
         return new Promise((resolve, reject) => {
           var localCopyCiphertext = window.localStorage[`${localStorageKeyPrefix}${id}`];
-          var localCopy = localCopyCiphertext ? JSON.parse(cryptoService.decrypt(localCopyCiphertext)) : null;
+          var localCopy;
+          try {
+            localCopy = localCopyCiphertext ? JSON.parse(cryptoService.decrypt(localCopyCiphertext)) : null;
+          } catch (err) {
+            window.onerror(`unable to decrypt 'window.localStorage["${localStorageKeyPrefix}${id}"]': ${err.message} `, null, null, null, err);
+          }
           var sequentialreadCopy = results[0];
           var s3Copy = results[1];
           var allCopies = [];
@@ -315,14 +329,18 @@
 (function(app, window, document, undefined){
   app.errorHandler = new (function ErrorHandler(modalService) {
 
+    this.errorContent = "";
+
     this.onError = (message, fileName, lineNumber, column, err) => {
+
+      this.errorContent += `<p>${message || err.message} at ${fileName || ""}:${lineNumber || ""}</p>`;
       console.log(message, fileName, lineNumber, column, err);
       modalService.open(
         "JavaScript Error",
         `<div>
           <span class="yavascript"></span>
         </div>
-        ${message || err.message} at ${fileName}:${lineNumber}
+        ${this.errorContent}
         `,
         (resolve, reject) => {},
         [{
@@ -331,7 +349,9 @@
           escapeKey: true,
           onclick: (resolve, reject) => resolve()
         }]
-      )
+      ).then(() => {
+        this.errorContent = "";
+      });
     };
 
     window.onerror = this.onError;
