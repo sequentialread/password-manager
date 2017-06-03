@@ -124,6 +124,12 @@
             if(httpRequest.responseText.length == 0) {
               resolveAndPopInFlight();
             } else {
+              // this can happen sometimes with our Application Cache fallback -- treat it as 404
+              if(httpRequest.responseText.indexOf("<!DOCTYPE HTML>") == 0 || httpRequest.responseText.indexOf("<html>") == 0) {
+                resolveAndPopInFlight(new RequestFailure(httpRequest, false));
+                return;
+              }
+
               var jsonFailed = false;
               try {
                 resolveAndPopInFlight(JSON.parse(cryptoService.decrypt(httpRequest.responseText)));

@@ -52,12 +52,14 @@ func storage(response http.ResponseWriter, request *http.Request) {
 		_, err := os.Stat(fullPath)
 		if err != nil {
 			response.WriteHeader(404)
+			fmt.Print("404 file not found: " + fullPath + "\n\n")
 			fmt.Fprint(response, "404 file not found")
 			return
 		}
 		file, err := os.Open(fullPath)
 		if err != nil {
 			response.WriteHeader(404)
+			fmt.Print("404 file not found: " + fullPath + "\n\n")
 			fmt.Fprint(response, "404 file not found")
 			return
 		}
