@@ -130,7 +130,7 @@
                 resolveAndPopInFlight(httpRequest.responseText);
               }
             }
-          } else if(httpRequest.status !== 0) {
+          } else {
             resolveAndPopInFlight(new RequestFailure(httpRequest, false));
           }
         };
