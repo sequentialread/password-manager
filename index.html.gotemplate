@@ -2,6 +2,7 @@
 <html manifest="index.appcache?v={{.Version}}">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>pwm</title>
   <script>
     // global namespace where we will be putting everything
@@ -25,20 +26,20 @@
   <div class="header">
     <h3>Sequential Read Password Manager</h3>
     <div style="float:right; padding-right:20px;">
-      <a href="https://git.sequentialread.com/forest/sequentialread-password-manager">source code and documentation</a>
+      <a class="source-link-responsive" href="https://git.sequentialread.com/forest/sequentialread-password-manager">source code and documentation</a>
       <span id="logout-link-container" style="display:none;">
-        | <a href="#" id="logout-link">log out</a>
+        <span class="source-link-responsive">|</span> <a href="#" id="logout-link">log out</a>
       </span>
     </div>
   </div>
   <div class="header-shadow"></div>
   <div class="splash content" id="splash-content">
     <h3>Enter/Generate your Secret Encryption Key</h3>
-    <div class="progress-bar-holder">
-      <span id="move-mouse-instruction" style="visibility: hidden;">Move your mouse around to generate entropy</span>
+    <div class="progress-bar-holder" id="progress-bar-holder" style="display: none;">
+      <span>Move your mouse around to generate entropy (touch and drag on mobile)</span>
       <div class="progress-bar" id="entropy-progress-bar" style="width:0;"></div>
     </div>
-    <input id="encryption-secret" type="password" style="width:calc(100% - 20px);"></input>
+    <input id="encryption-secret" type="password" autofocus style="width:calc(100% - 20px);"></input>
     <button id="generate-encryption-secret-button">
       Generate new Encryption Secret
     </button>

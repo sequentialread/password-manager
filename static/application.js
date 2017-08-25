@@ -1,5 +1,16 @@
 'use strict';
 
+
+(function(window, undefined){
+
+  window.sequentialReadPasswordManager = window.sequentialReadPasswordManager || {};
+  window.sequentialReadPasswordManager.localStorageKeyPrefix = "sequentialread-pwm:";
+  window.sequentialReadPasswordManager.s3InterceptorSymbol =  "/awsS3/";
+  window.sequentialReadPasswordManager.storageBaseUrl = "/storage";
+
+})(window);
+
+
 (function(app, window, document, undefined){
   var numberOfWordsInPhrase = 9;
   var lengthOfKeySegment = 4;
@@ -14,13 +25,23 @@
     var distanceOffsetY = 0;
     var hashCount = 0;
     var lastTimeStamp = 0;
-    document.onmousemove = (mouseEvent) => {
-      distanceOffsetX += Math.abs(lastKnownOffsetX - mouseEvent.offsetX);
-      distanceOffsetY += Math.abs(lastKnownOffsetY - mouseEvent.offsetY);
-      lastKnownOffsetX = mouseEvent.offsetX;
-      lastKnownOffsetY = mouseEvent.offsetY;
-      lastTimeStamp = mouseEvent.timeStamp;
+
+    var mouseOrTouchMoved = (mouseOrTouchEvent) => {
+      if(!mouseOrTouchEvent.offsetX && (!mouseOrTouchEvent.touches || mouseOrTouchEvent.touches.length == 0)) {
+        return;
+      }
+      var hasTouches = mouseOrTouchEvent.touches && mouseOrTouchEvent.touches[0];
+      var offsetX = hasTouches ? mouseOrTouchEvent.touches[0].screenX : mouseOrTouchEvent.offsetX;
+      var offsetY = hasTouches ? mouseOrTouchEvent.touches[0].screenY : mouseOrTouchEvent.offsetY;
+      distanceOffsetX += Math.abs(lastKnownOffsetX - offsetX);
+      distanceOffsetY += Math.abs(lastKnownOffsetY - offsetY);
+      lastKnownOffsetX = offsetX;
+      lastKnownOffsetY = offsetY;
+      lastTimeStamp = new Date().getTime();
     };
+
+    document.addEventListener('mousemove', mouseOrTouchMoved, false);
+    document.body.addEventListener('touchmove', mouseOrTouchMoved, false);
 
     var currentUserSecret = null;
     var currentUserSecretId = null;
@@ -85,27 +106,101 @@
   })();
 })(window.sequentialReadPasswordManager, window, document);
 
+(function(app, window, document, undefined) {
+
+  app.http = (method, url, headers, content) =>
+    new Promise((resolve, reject) => {
+      headers = headers || {};
+      var httpRequest = new XMLHttpRequest();
+      httpRequest.onloadend = () => {
+        //console.log(`httpRequest.onloadend: ${httpRequest.status} ${url}`);
+        if (httpRequest.status < 300) {
+          if(httpRequest.responseText.length == 0) {
+            resolve();
+          } else {
+            // this can happen sometimes with our Application Cache fallback -- treat it as 404
+            if(httpRequest.responseText.indexOf("<!DOCTYPE HTML>") == 0 || httpRequest.responseText.indexOf("<html>") == 0) {
+              reject(false);
+              return;
+            }
+
+            // Does it look like a sjcl ciphertext json blob ?
+            if(httpRequest.responseText.indexOf("\"iv\"") != -1 && httpRequest.responseText.indexOf("\"ks\"") != -1 && httpRequest.responseText.indexOf("\"cipher\"") != -1) {
+              var jsonFailed = false;
+              try {
+                resolve(JSON.parse(app.cryptoService.decrypt(httpRequest.responseText)));
+              } catch (err) {
+                jsonFailed  = true;
+              }
+              if(jsonFailed) {
+                try {
+                  resolve(app.cryptoService.decrypt(httpRequest.responseText));
+                } catch (err) {
+                  window.onerror(`unable to decrypt '${url}': ${err.message} `, null, null, null, err);
+                  reject(false);
+                }
+              }
+            } else {
+              resolve(httpRequest.responseText);
+            }
+          }
+        } else {
+          reject(false);
+        }
+      };
+      //httpRequest.onerror = () => {
+      //  console.log(`httpRequest.onerror: ${httpRequest.status} ${url}`);
+      //  reject(false);
+      //};
+      httpRequest.ontimeout = () => {
+        //console.log(`httpRequest.ontimeout: ${httpRequest.status} ${url}`);
+        reject(true);
+      };
+
+      // Encrypt Content first
+      if(content) {
+        if(typeof content == "object") {
+          content = JSON.stringify(content, 0, 2);
+        }
+        content = app.cryptoService.encrypt(content);
+      }
+
+      // AWS S3 request interceptor
+      if(url.startsWith(app.s3InterceptorSymbol)) {
+        var path = url.replace(app.s3InterceptorSymbol, '');
+        var s3Request = app.awsClient.s3Request(method, app.S3BucketRegion, app.S3BucketName, path, content);
+        headers = s3Request.headers;
+        url = s3Request.endpointUri;
+      }
+
+      httpRequest.open(method, url);
+      httpRequest.timeout = 2000;
+
+      Object.keys(headers)
+        .filter(key => key.toLowerCase() != 'host' && key.toLowerCase() != 'content-length')
+        .forEach(key => httpRequest.setRequestHeader(key, headers[key]));
+
+      if(content) {
+        httpRequest.send(content);
+      } else {
+        httpRequest.send();
+      }
+    });
+
+})(window.sequentialReadPasswordManager, window, document);
+
 
 (function(app, window, document, undefined){
-  app.storageService = new (function StorageService(cryptoService, awsClient, awsS3BucketName, awsS3BucketRegion) {
+  app.storageService = new (function StorageService(localStorageKeyPrefix, s3InterceptorSymbol, storageBaseUrl, http, cryptoService) {
 
-    var baseUrl = "/storage";
-
-    var s3InterceptorSymbol = "/awsS3/";
-
-    var localStorageKeyPrefix = "sequentialread-pwm:";
+    function RequestFailure(isTimeout) {
+      this.isTimeout = isTimeout;
+    }
 
     var requestsCurrentlyInFlight = 0;
 
-    function RequestFailure(httpRequest, isTimeout) {
-      this.httpRequest = httpRequest;
-      this.isTimeout = isTimeout
-    }
-
-    // request ALWAYS resolves, if it fails it will resolve a RequestFailure.
-    var request = (method, url, headers, content) =>
+    var httpButAlwaysResolves = (method, url, headers, content) =>
       new Promise((resolve, reject) => {
-
         requestsCurrentlyInFlight += 1;
         document.getElementById('progress-container').style.display = 'block';
 
@@ -117,83 +212,18 @@
           resolve(result);
         };
 
-        headers = headers || {};
-        var httpRequest = new XMLHttpRequest();
-        httpRequest.onloadend = () => {
-          //console.log(`httpRequest.onloadend: ${httpRequest.status} ${url}`);
-          if (httpRequest.status === 200) {
-            if(httpRequest.responseText.length == 0) {
-              resolveAndPopInFlight();
-            } else {
-              // this can happen sometimes with our Application Cache fallback -- treat it as 404
-              if(httpRequest.responseText.indexOf("<!DOCTYPE HTML>") == 0 || httpRequest.responseText.indexOf("<html>") == 0) {
-                resolveAndPopInFlight(new RequestFailure(httpRequest, false));
-                return;
-              }
+        http(method, url, headers, content)
+        .then(
+          (result) => resolveAndPopInFlight(result),
+          (isTimeout) => resolveAndPopInFlight(new RequestFailure(isTimeout)),
+        );
 
-              var jsonFailed = false;
-              try {
-                resolveAndPopInFlight(JSON.parse(cryptoService.decrypt(httpRequest.responseText)));
-              } catch (err) {
-                jsonFailed  = true;
-              }
-              if(jsonFailed) {
-                try {
-                  resolveAndPopInFlight(cryptoService.decrypt(httpRequest.responseText));
-                } catch (err) {
-                  window.onerror(`unable to decrypt '${url}': ${err.message} `, null, null, null, err);
-                  resolveAndPopInFlight(new RequestFailure(httpRequest, false));
-                }
-              }
-            }
-          } else {
-            resolveAndPopInFlight(new RequestFailure(httpRequest, false));
-          }
-        };
-        //httpRequest.onerror = () => {
-        //  console.log(`httpRequest.onerror: ${httpRequest.status} ${url}`);
-        //  resolveAndPopInFlight(new RequestFailure(httpRequest, false));
-        //};
-        httpRequest.ontimeout = () => {
-          //console.log(`httpRequest.ontimeout: ${httpRequest.status} ${url}`);
-          resolveAndPopInFlight(new RequestFailure(httpRequest, true));
-        };
-
-        // Encrypt Content first
-        if(content) {
-          if(typeof content == "object") {
-            content = JSON.stringify(content, 0, 2);
-          }
-          content = cryptoService.encrypt(content);
-        }
-
-        // AWS S3 request interceptor
-        if(url.startsWith(s3InterceptorSymbol)) {
-          var path = url.replace(s3InterceptorSymbol, '');
-          var s3Request = awsClient.s3Request(method, awsS3BucketRegion, awsS3BucketName, path, content);
-          headers = s3Request.headers;
-          url = s3Request.endpointUri;
-        }
-
-        httpRequest.open(method, url);
-        httpRequest.timeout = 2000;
-
-        Object.keys(headers)
-          .filter(key => key.toLowerCase() != 'host' && key.toLowerCase() != 'content-length')
-          .forEach(key => httpRequest.setRequestHeader(key, headers[key]));
-
-        if(content) {
-          httpRequest.send(content);
-        } else {
-          httpRequest.send();
-        }
       });
 
     this.get = (id) => {
-      // request() ALWAYS resolves, if it fails it will resolve a RequestFailure.
       return Promise.all([
-        request('GET', `${baseUrl}/${id}`, {'Accept': 'application/json'}),
-        request('GET', `${s3InterceptorSymbol}${id}`, {'Accept': 'application/json'})
+        httpButAlwaysResolves('GET', `${storageBaseUrl}/${id}`, {'Accept': 'application/json'}),
+        httpButAlwaysResolves('GET', `${s3InterceptorSymbol}${id}`, {'Accept': 'application/json'})
       ]).then((results) => {
         return new Promise((resolve, reject) => {
           var localCopyCiphertext = window.localStorage[`${localStorageKeyPrefix}${id}`];
@@ -209,10 +239,10 @@
           if(localCopy) {
             allCopies.push(localCopy);
           }
-          if(!(sequentialreadCopy instanceof RequestFailure)) {
+          if(!(sequentialreadCopy instanceof RequestFailure) && sequentialreadCopy && sequentialreadCopy.lastUpdated) {
             allCopies.push(sequentialreadCopy);
           }
-          if(!(s3Copy instanceof RequestFailure)) {
+          if(!(s3Copy instanceof RequestFailure) && s3Copy && s3Copy.lastUpdated) {
             allCopies.push(s3Copy);
           }
           if(allCopies.length == 0) {
@@ -242,21 +272,20 @@
     };
     this.put = (id, content) => {
       content.lastUpdated = new Date().getTime();
-      // request() ALWAYS resolves, if it fails it will resolve a RequestFailure.
       window.localStorage[`${localStorageKeyPrefix}${id}`] = cryptoService.encrypt(JSON.stringify(content));
       return Promise.all([
-        request('PUT', `${baseUrl}/${id}`, {'Content-Type': 'application/json'}, content),
-        request('PUT', `${s3InterceptorSymbol}${id}`, {'Content-Type': 'application/json'}, content)
+        httpButAlwaysResolves('PUT', `${storageBaseUrl}/${id}`, {'Content-Type': 'application/json'}, content),
+        httpButAlwaysResolves('PUT', `${s3InterceptorSymbol}${id}`, {'Content-Type': 'application/json'}, content)
       ]).then(() => content)
     };
     this.delete = (id) => {
       window.localStorage.removeItem(`${localStorageKeyPrefix}${id}`);
       return Promise.all([
-        request('DELETE', `${baseUrl}/${id}`),
-        request('DELETE', `${s3InterceptorSymbol}${id}`)
+        httpButAlwaysResolves('DELETE', `${storageBaseUrl}/${id}`),
+        httpButAlwaysResolves('DELETE', `${s3InterceptorSymbol}${id}`)
       ]).then(() => null);
     };
-  })(app.cryptoService, app.awsClient, app.S3BucketName, app.S3BucketRegion);
+  })(app.localStorageKeyPrefix, app.s3InterceptorSymbol, app.storageBaseUrl, app.http, app.cryptoService);
 })(window.sequentialReadPasswordManager, window, document);
 
 (function(app, document, window, undefined){
@@ -341,6 +370,7 @@
     this.onError = (message, fileName, lineNumber, column, err) => {
 
       this.errorContent += `<p>${message || err.message} at ${fileName || ""}:${lineNumber || ""}</p>`;
+      document.getElementById('progress-container').style.display = 'none';
       console.log(message, fileName, lineNumber, column, err);
       modalService.open(
         "JavaScript Error",
@@ -372,7 +402,7 @@
       }
     });
   })(app.modalService);
-})(window.sequentialReadPasswordManager, window);
+})(window.sequentialReadPasswordManager, window, document);
 
 (function(app, window, document, undefined){
   app.navController = new (function NavController() {
@@ -529,14 +559,13 @@
             "Are you sure you want to make a new index file?",
             (resolve, reject) => {},
             [{
-              innerHTML: "Cancel",
+              innerHTML: "Log Out",
               escapeKey: true,
               onclick: (resolve, reject) => reject()
             },
             {
-              id: "new-file-create-button",
-              innerHTML: "Create",
-              enterKey: true,
+              innerHTML: "Create & Potentially Overwrite",
+              enterKey: false,
               onclick: (resolve, reject) => resolve()
             }]
           )
@@ -548,7 +577,10 @@
                 () => null //TODO error handler
               );
             },
-            () => null
+            () => {
+              window.location = window.location.origin;
+              return null;
+            }
           );
         }
       );
@@ -594,10 +626,11 @@
 })(window.sequentialReadPasswordManager, document);
 
 (function(app, window, document, undefined){
-  app.splashController = new (function SplashController(cryptoService, navController, fileListController) {
+
+  app.splashController = new (function SplashController(localStorageKeyPrefix, http, cryptoService, navController, fileListController) {
 
     document.getElementById('generate-encryption-secret-button').onclick = () => {
-      document.getElementById('move-mouse-instruction').style.visibility = 'visible';
+      document.getElementById('progress-bar-holder').style.display = 'block';
 
       var entropizer = cryptoService.getEntropizer();
 
@@ -607,7 +640,7 @@
           document.getElementById('encryption-secret').value = entropizer.passphrase;
           document.getElementById('encryption-secret').type = 'text';
           window.clearInterval(checkInterval);
-          document.getElementById('move-mouse-instruction').style.visibility = 'hidden';
+          document.getElementById('progress-bar-holder').style.display = 'none';
           document.getElementById('entropy-progress-bar').style.width = '0';
         }
       }, 100);
@@ -631,5 +664,23 @@
 
     document.getElementById('splash-continue-button').onclick = onContinueClicked;
 
-  })(app.cryptoService, app.navController, app.fileListController);
+    document.getElementById('encryption-secret')
+
+    // Force a reload if the version changed (gets around issues with Application Cache)
+    http('GET', 'version', {}, null)
+    .then(
+      (currentVersion) => {
+        var lastVersion = window.localStorage[`${localStorageKeyPrefix}version`];
+        if(currentVersion != lastVersion) {
+          console.log(`reloading in 1 second due to new app version: ${currentVersion}`)
+          window.localStorage[`${localStorageKeyPrefix}version`] = currentVersion;
+          window.setTimeout(function(){
+            window.location = window.location.origin;
+          }, 1000);
+        }
+      },
+      () => {}
+    )
+
+  })(app.localStorageKeyPrefix, app.http, app.cryptoService, app.navController, app.fileListController);
 })(window.sequentialReadPasswordManager, window, document);

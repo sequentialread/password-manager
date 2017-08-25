@@ -5,6 +5,8 @@ body {
   margin:0;
   font-family: 'Ubuntu','Roboto','Open Sans',sans-serif;
 }
+
+
 a {
   color: #9359fa;
 }
@@ -13,7 +15,7 @@ a:visited {
 }
 h3 {
   margin-top:0px;
-  margin-bottom: 15px;
+  margin-bottom: 5px;
   color: #333333;
 }
 input, button {
@@ -76,6 +78,18 @@ u {
   padding: 0;
   margin: 0;
 }
+@media only screen and (max-width: 679px) {
+  html .header {
+    height: 16px;
+  }
+
+  html .header h3 {
+    font-size:14px;
+  }
+  html .header .source-link-responsive {
+    display: none;
+  }
+}
 .header a {
   color: white;
 }
@@ -88,6 +102,14 @@ u {
   background: #f6ff72;
   border-bottom: 1px solid #bbbbbb;
   margin-bottom: 20px;
+}
+@media only screen and (max-width: 840px) {
+  html body {
+    background: white;
+  }
+  html .content {
+    border: none;
+  }
 }
 .content {
   background: white;
@@ -107,7 +129,6 @@ u {
 .progress-bar-holder {
   margin-top: 15px;
   margin-bottom: 5px;
-  height: 25px;
   width: 100%;
 }
 .progress-bar {

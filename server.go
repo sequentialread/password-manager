@@ -180,6 +180,10 @@ func main() {
 	reloadStaticFiles()
 
 	http.HandleFunc("/", indexHtml)
+	http.HandleFunc("/version", func(response http.ResponseWriter, request *http.Request) {
+		response.WriteHeader(200)
+		fmt.Fprint(response, application.Version)
+	})
 	http.HandleFunc("/index.appcache", cacheManifest)
 
 	http.HandleFunc("/storage/", storage)
