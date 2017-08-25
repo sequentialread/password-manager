@@ -664,8 +664,6 @@
 
     document.getElementById('splash-continue-button').onclick = onContinueClicked;
 
-    document.getElementById('encryption-secret')
-
     // Force a reload if the version changed (gets around issues with Application Cache)
     http('GET', 'version', {}, null)
     .then(

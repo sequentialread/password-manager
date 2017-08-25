@@ -41,7 +41,7 @@ It was designed that way to strengthen the claim that "everything it sends out f
 
  It also has its own AWS Credential with access to the bucket, so you can still access S3 if my server goes down.
 
- It will also work even if your device has no internet connection, of course any changes will not be sent to my server or to S3 until you can connect again.
+ It will also work even if your device has no internet connection, of course any changes will not be sent to the server or to S3 until you connect again and prompt the app to update the file again.
 
  It uses a naive approach to keep all 3 data stores in sync: When writing, it will attempt to write to all 3 and tolerate failures. When reading, it will compare the `lastUpdated` timestamps on all versions that it received, and if they don't match or if one is missing, it will issue a `PUT` with the most up-to-date version.
 
