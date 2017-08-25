@@ -524,13 +524,34 @@
       .then(
         renderFileList,
         () => {
-          storageService.put(cryptoService.getKeyId(), this.fileListDocument)
+          modalService.open(
+            "New Index File",
+            "Are you sure you want to make a new index file?",
+            (resolve, reject) => {},
+            [{
+              innerHTML: "Cancel",
+              escapeKey: true,
+              onclick: (resolve, reject) => reject()
+            },
+            {
+              id: "new-file-create-button",
+              innerHTML: "Create",
+              enterKey: true,
+              onclick: (resolve, reject) => resolve()
+            }]
+          )
           .then(
-            () => renderFileList(this.fileListDocument),
-            () => null //TODO error handler
+            () => {
+              storageService.put(cryptoService.getKeyId(), this.fileListDocument)
+              .then(
+                () => renderFileList(this.fileListDocument),
+                () => null //TODO error handler
+              );
+            },
+            () => null
           );
         }
-      )
+      );
     };
 
     var renderFileList = (fileListDocument) => {
