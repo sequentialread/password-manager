@@ -215,7 +215,7 @@
         http(method, url, headers, content)
         .then(
           (result) => resolveAndPopInFlight(result),
-          (isTimeout) => resolveAndPopInFlight(new RequestFailure(isTimeout)),
+          (isTimeout) => resolveAndPopInFlight(new RequestFailure(isTimeout))
         );
 
       });
