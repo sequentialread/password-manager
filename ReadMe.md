@@ -37,7 +37,7 @@ It was designed that way to strengthen the claim that "everything it sends out f
 
 ## High Avaliability by Design
 
- It uses the [HTML5 Application Cache](https://webcache.googleusercontent.com/search?q=cache:ih81QOzVxasJ:https://alistapart.com/article/application-cache-is-a-douchebag) to ensure that even if my server goes down, the app still loads.
+ It uses the [HTML5 Application Cache](https://alistapart.com/article/application-cache-is-a-douchebag/) to ensure that even if my server goes down, the app still loads.
 
  It also has its own AWS Credential with access to the bucket, so you can still access S3 if my server goes down.
 
