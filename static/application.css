@@ -20,7 +20,7 @@ h3 {
 }
 input, button {
   border-radius: 2px;
-  border: 1px solid #dddddd;
+  border: 1px solid #bbb;
   padding: 5px;
   margin:5px;
 }
@@ -44,7 +44,7 @@ button:hover {
 }
 button:active {
   background: #ffffff;
-  border: 1px solid #dddddd;
+  border: 1px solid #aaa;
 }
 input[type="text"]{
   color:  #666666;

@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html manifest="index.appcache?v={{.Version}}">
+<html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -17,10 +17,10 @@
       window.sequentialReadPasswordManager.sjcl = factory();
     };
   </script>
-  <script src="static/vendor/sjcl.js?v={{.Version}}"></script>
-  <script src="static/vendor/tenThousandMostCommonEnglishWords.js?v={{.Version}}"></script>
-  <script src="static/awsClient.js?v={{.Version}}"></script>
-  <link rel="stylesheet" type="text/css" href="static/application.css?v={{.Version}}">
+  <script src="static/vendor/sjcl.js"></script> 
+  <script src="static/vendor/tenThousandMostCommonEnglishWords.js"></script>
+  <script src="static/awsClient.js"></script>
+  <link rel="stylesheet" type="text/css" href="static/application.css">
 </head>
 <body>
   <div class="header">
@@ -90,6 +90,6 @@
     <div class="loader">loading</div>
   </div>
 
-  <script src="static/application.js?v={{.Version}}"></script>
+  <script src="static/application.js"></script>
 </body>
 </html>

@@ -1,14 +1,48 @@
 'use strict';
 
 
-(function(window, undefined){
+(function(window, navigator, undefined){
 
   window.sequentialReadPasswordManager = window.sequentialReadPasswordManager || {};
   window.sequentialReadPasswordManager.localStorageKeyPrefix = "sequentialread-pwm:";
   window.sequentialReadPasswordManager.s3InterceptorSymbol =  "/awsS3/";
   window.sequentialReadPasswordManager.storageBaseUrl = "/storage";
 
-})(window);
+  window.addEventListener('load', () => {
+    if (!('serviceWorker' in navigator)) {
+      console.log('service workers not supported 😣')
+      return
+    }
+  
+    navigator.serviceWorker.register('/serviceworker.js').then(
+      (reg) => {
+        if(reg.installing) {
+          console.log('Service worker installing, will reload');
+          
+          document.getElementById('progress-container').style.display = 'block';
+          window.setTimeout(function(){
+            window.location = window.location.origin;
+          }, 2000);
+        } else if(reg.waiting) {
+          console.log('Service worker installed');
+          
+        } else if(reg.active) {
+          console.log('Service worker active');
+        }
+      },
+      err => {
+        console.error('service worker registration failed! 😱', err)
+      }
+    );
+    navigator.serviceWorker.addEventListener('message', event => {
+      console.log(event.data.log);
+      if(event.data.log) {
+        console.log(event.data.log);
+      }
+    });
+  });
+
+})(window, navigator);
 
 
 (function(app, window, document, undefined){
@@ -669,9 +703,19 @@
     .then(
       (currentVersion) => {
         var lastVersion = window.localStorage[`${localStorageKeyPrefix}version`];
-        if(currentVersion != lastVersion) {
-          console.log(`reloading in 1 second due to new app version: ${currentVersion}`)
+        if(currentVersion && currentVersion != lastVersion) {
+          
+          console.log(`reloading service worker due to new app version: ${currentVersion}`)
           window.localStorage[`${localStorageKeyPrefix}version`] = currentVersion;
+          if(navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({clearCache: true});
+          }
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            registrations.forEach(registration => {
+              registration.unregister()
+            }) 
+          });
+
           window.setTimeout(function(){
             window.location = window.location.origin;
           }, 1000);

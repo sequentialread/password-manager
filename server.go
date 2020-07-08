@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"io"
@@ -21,7 +22,6 @@ import (
 var appPort = "8073"
 var dataPath string
 var indexTemplate *template.Template
-var appcacheTemplate *template.Template
 var application Application
 
 type Application struct {
@@ -104,27 +104,7 @@ func indexHtml(response http.ResponseWriter, request *http.Request) {
 		fmt.Fprintf(response, "500 %s", err)
 		return
 	}
-	response.Header().Set("Cache-Control", "max-age=0")
-	response.Header().Set("Cache-Control", "must-revalidate")
-	response.Header().Set("Cache-Control", "no-cache")
-	response.Header().Set("Cache-Control", "no-store")
-
-	io.Copy(response, &buffer)
-}
-
-func cacheManifest(response http.ResponseWriter, request *http.Request) {
-	var buffer bytes.Buffer
-	err := appcacheTemplate.Execute(&buffer, application)
-	if err != nil {
-		response.WriteHeader(500)
-		fmt.Fprintf(response, "500 %s", err)
-		return
-	}
-	response.Header().Set("Content-Type", "text/cache-manifest")
-	response.Header().Set("Cache-Control", "max-age=0")
-	response.Header().Set("Cache-Control", "must-revalidate")
-	response.Header().Set("Cache-Control", "no-cache")
-	response.Header().Set("Cache-Control", "no-store")
+	response.Header().Set("Etag", application.Version)
 
 	io.Copy(response, &buffer)
 }
@@ -156,8 +136,8 @@ func hashFiles(filenames []string) string {
 func reloadStaticFiles() {
 	application.Version = hashFiles([]string{
 		"index.html.gotemplate",
-		"index.appcache.gotemplate",
 		"static/application.js",
+		"static/serviceworker.js",
 		"static/awsClient.js",
 		"static/application.css",
 		"static/vendor/sjcl.js",
@@ -169,7 +149,6 @@ func reloadStaticFiles() {
 	application.S3BucketRegion = os.ExpandEnv("$SEQUENTIAL_READ_PWM_S3_BUCKET_REGION")
 
 	indexTemplate = loadTemplate("index.html.gotemplate")
-	appcacheTemplate = loadTemplate("index.appcache.gotemplate")
 }
 
 func main() {
@@ -180,18 +159,29 @@ func main() {
 	reloadStaticFiles()
 
 	http.HandleFunc("/", indexHtml)
+
+	http.HandleFunc("/serviceworker.js", func(response http.ResponseWriter, request *http.Request) {
+		file, _ := os.OpenFile("static/serviceworker.js", os.O_RDONLY, 0755)
+		defer file.Close()
+		response.Header().Set("Etag", application.Version)
+		response.Header().Set("Content-Type", "application/javascript")
+		io.Copy(response, file)
+	})
+
 	http.HandleFunc("/version", func(response http.ResponseWriter, request *http.Request) {
 		response.WriteHeader(200)
 		fmt.Fprint(response, application.Version)
 	})
-	http.HandleFunc("/index.appcache", cacheManifest)
 
 	http.HandleFunc("/storage/", storage)
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 
 	var headless = flag.Bool("headless", false, "headless server mode")
-	if *headless == false {
+	var tlsFlag = flag.String("tls", "", "path to tlsFlag cert/key (for example, entering \"test\" will resolve \"./test.key\" and \"./test.pem\"")
+	flag.Parse()
+
+	if headless == nil || *headless == false {
 
 		go func() {
 			for true {
@@ -202,12 +192,20 @@ func main() {
 
 		go func() {
 			var appUrl = "http://localhost:" + appPort
+			if tlsFlag != nil && *tlsFlag != "" {
+				appUrl = "https://localhost:" + appPort
+			}
 			var serverIsRunning = false
 			var attempts = 0
 			for !serverIsRunning && attempts < 15 {
 				attempts += 1
 				time.Sleep(time.Millisecond * 500)
-				response, err := http.Get(appUrl)
+				tr := &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				}
+				client := &http.Client{Transport: tr}
+				response, err := client.Get(appUrl)
+
 				if err == nil && response.StatusCode == 200 {
 					serverIsRunning = true
 				}
@@ -216,8 +214,13 @@ func main() {
 		}()
 	}
 
-	//http.ListenAndServeTLS(":443", "test-server.pem", "test-server.key", nil)
-	http.ListenAndServe(":"+appPort, nil)
+	if tlsFlag != nil && *tlsFlag != "" {
+		err := http.ListenAndServeTLS(":"+appPort, fmt.Sprintf("%s.pem", *tlsFlag), fmt.Sprintf("%s.key", *tlsFlag), nil)
+		panic(err)
+	} else {
+		err := http.ListenAndServe(":"+appPort, nil)
+		panic(err)
+	}
 
 }
 
