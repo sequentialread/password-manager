@@ -35,7 +35,6 @@
       }
     );
     navigator.serviceWorker.addEventListener('message', event => {
-      console.log(event.data.log);
       if(event.data.log) {
         console.log(event.data.log);
       }
