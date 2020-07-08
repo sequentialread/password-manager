@@ -1,7 +1,6 @@
 
 # SequentialRead Password Manager
 
-
 This is a Golang / HTML5  / vanilla JavaScript web-application which stores encrypted text files in three places:
 
  - `localStorage` in the browser
@@ -37,7 +36,7 @@ It was designed that way to strengthen the claim that "everything it sends out f
 
 ## High Avaliability by Design
 
- It uses the [HTML5 Application Cache](https://alistapart.com/article/application-cache-is-a-douchebag/) to ensure that even if my server goes down, the app still loads.
+ It uses the [Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) to ensure that even if my server goes down, the app still loads.
 
  It also has its own AWS Credential with access to the bucket, so you can still access S3 if my server goes down.
 
@@ -69,7 +68,7 @@ Casual remote attackers probably won't have access to the ciphertext since they 
 
 ## Hosting it yourself
 
-You should create a separate IAM user in AWS which only has access to the bucket. This is the policy I used for that user:
+You should create a separate IAM user in AWS which only has access to the bucket. This is the policy I used for that user. Note that the user does not have the capability to list the bucket contents, only to get and put objects. This is very important for security reasons, otherwise a remote attacker would have a much easier time trying to break the encryption, because they would have easy access to the ciphertext. 
 
 ```
 {
