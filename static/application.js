@@ -253,6 +253,10 @@
 
       });
 
+    this.isStoredLocally = (id) => {
+      return !!window.localStorage[`${localStorageKeyPrefix}${id}`];
+    };
+
     this.get = (id) => {
       return Promise.all([
         httpButAlwaysResolves('GET', `${storageBaseUrl}/${id}`, {'Accept': 'application/json'}),
@@ -585,7 +589,26 @@
     this.load = () => {
       storageService.get(cryptoService.getKeyId())
       .then(
-        renderFileList,
+        fileListDocument => {
+          // attempt to load all the files that are not already stored locally
+          // this way if the user tries to open a file that they have never opened before
+          // when they are offline, it should work.
+
+          // console.log(fileListDocument.files
+          //   .filter(x => !storageService.isStoredLocally(x.id)).map(x => x.name))
+
+          // console.log(fileListDocument.files
+          //   .filter(x => !storageService.isStoredLocally(x.id)).map(x => x.id))
+
+          fileListDocument.files
+            .filter(x => !storageService.isStoredLocally(x.id))
+            .map(file => storageService.get(file.id).then(
+              () => {}, 
+              err => console.log(`could not cache file "${file.name}"`, err)
+            ));
+
+          return renderFileList(fileListDocument);
+        },
         () => {
           modalService.open(
             "New Index File",
@@ -706,7 +729,7 @@
           
           console.log(`reloading service worker due to new app version: ${currentVersion}`)
           window.localStorage[`${localStorageKeyPrefix}version`] = currentVersion;
-          if(navigator.serviceWorker.controller) {
+          if(navigator.serviceWorker && navigator.serviceWorker.controller) {
             navigator.serviceWorker.controller.postMessage({clearCache: true});
           }
           navigator.serviceWorker.getRegistrations().then(registrations => {
@@ -715,6 +738,7 @@
             }) 
           });
 
+          document.getElementById('progress-container').style.display = 'block';
           window.setTimeout(function(){
             window.location = window.location.origin;
           }, 1000);
