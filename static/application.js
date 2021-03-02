@@ -234,23 +234,39 @@
 
     var httpButAlwaysResolves = (method, url, headers, content) =>
       new Promise((resolve, reject) => {
-        requestsCurrentlyInFlight += 1;
-        document.getElementById('progress-container').style.display = 'block';
 
-        var resolveAndPopInFlight = (result) => {
-          requestsCurrentlyInFlight -= 1;
-          if(requestsCurrentlyInFlight == 0) {
-            document.getElementById('progress-container').style.display = 'none';
+        const doRequestNow = () => {
+          requestsCurrentlyInFlight += 1;
+          if(!window.sequentialReadPasswordManager.syncingMode) {
+            document.getElementById('progress-container').style.display = 'block';
           }
-          resolve(result);
+  
+          var resolveAndPopInFlight = (result) => {
+            requestsCurrentlyInFlight -= 1;
+            if(requestsCurrentlyInFlight == 0) {
+              document.getElementById('progress-container').style.display = 'none';
+            }
+            resolve(result);
+          };
+  
+          http(method, url, headers, content)
+          .then(
+            (result) => resolveAndPopInFlight(result),
+            (isTimeout) => resolveAndPopInFlight(new RequestFailure(isTimeout))
+          );
         };
 
-        http(method, url, headers, content)
-        .then(
-          (result) => resolveAndPopInFlight(result),
-          (isTimeout) => resolveAndPopInFlight(new RequestFailure(isTimeout))
-        );
-
+        
+        let tryToDoRequest;
+        tryToDoRequest = () => {
+          if(requestsCurrentlyInFlight <= 8) {
+            doRequestNow();
+          } else if(window.sequentialReadPasswordManager.syncingMode) {
+            setTimeout(tryToDoRequest, 100);
+          }
+        };
+        
+        tryToDoRequest();
       });
 
     this.isStoredLocally = (id) => {
@@ -407,7 +423,7 @@
     this.onError = (message, fileName, lineNumber, column, err) => {
 
       this.errorContent += `<p>${message || err.message} at ${fileName || ""}:${lineNumber || ""}</p>`;
-      document.getElementById('progress-container').style.display = 'none';
+      document.getElementById('progress-container').style.visibility = 'none';
       console.log(message, fileName, lineNumber, column, err);
       modalService.open(
         "JavaScript Error",
@@ -444,7 +460,10 @@
 (function(app, window, document, undefined){
   app.navController = new (function NavController() {
 
-    document.getElementById('logout-link').onclick = () => window.location = window.location.origin;
+    document.getElementById('logout-link').onclick = () => {
+      window.sequentialReadPasswordManager.syncingMode = false;
+      window.location = window.location.origin;
+    };
 
     var routes = [
       'splash-content',
@@ -528,6 +547,7 @@
     };
 
     document.getElementById('new-file-button').onclick = () => {
+      window.sequentialReadPasswordManager.syncingMode = false;
       modalService.open(
         "New File",
         "Name:<br/><input id=\"new-file-name\" type=\"text\" style=\"width:calc(100% - 20px)\"></input>",
@@ -600,12 +620,24 @@
           // console.log(fileListDocument.files
           //   .filter(x => !storageService.isStoredLocally(x.id)).map(x => x.id))
 
-          fileListDocument.files
+          const cacheFilesPromises = fileListDocument.files
             .filter(x => !storageService.isStoredLocally(x.id))
             .map(file => storageService.get(file.id).then(
               () => {}, 
-              err => console.log(`could not cache file "${file.name}"`, err)
+              err => {
+                console.log(`could not cache file "${file.name}"`, err);
+                return Promise.resolve();
+              }
             ));
+          
+          window.sequentialReadPasswordManager.syncingMode = true;
+          document.querySelector(".file-list-header-row b").style.visibility = "visible";
+          document.getElementById('file-list').classList.add('file-list-syncing');
+          Promise.all(cacheFilesPromises).then(() => {
+            window.sequentialReadPasswordManager.syncingMode = false;
+            document.getElementById('file-list').classList.remove('file-list-syncing');
+            document.querySelector(".file-list-header-row b").style.visibility = "hidden";
+          });
 
           return renderFileList(fileListDocument);
         },
@@ -657,6 +689,7 @@
           fileLink.innerText = file.name;
           fileLink.href = "#";
           fileLink.onclick = () => {
+            window.sequentialReadPasswordManager.syncingMode = false;
             storageService.get(file.id)
             .then(
               (file) => {

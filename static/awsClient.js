@@ -76,11 +76,6 @@
         return lowercase ? toReturn : toReturn.toUpperCase();
     }
 
-    //   var DateStringFormat = "yyyyMMdd";
-    function dateStringFormat (date) {
-      return `${date.getFullYear()}${lpad1(date.getMonth()+1)}${lpad1(date.getDate())}`;
-    }
-
     // var ISO8601BasicFormat = "yyyyMMddTHHmmssZ";
     function ISO8601BasicFormat(date) {
       return `${date.toISOString().replace(/[-\.:]/g, '').substring(0,15)}Z`;
@@ -187,7 +182,7 @@
       // generate a hash of the canonical request, to go into signature computation
       var canonicalRequestHashBits = sjcl.hash.sha256.hash(sjcl.codec.utf8String.toBits(canonicalRequest));
 
-      var dateStamp = dateStringFormat(dateTime);
+      var dateStamp = dateTimeStamp.substring(0, 8);
       var scope = `${dateStamp}/${aws4Request.region}/${aws4Request.service}/${TERMINATOR}`;
       var stringToSign = `${SCHEME}-${ALGORITHM}\n${dateTimeStamp}\n${scope}\n${toHexString(canonicalRequestHashBits, true)}`;
 
