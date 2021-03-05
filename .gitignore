@@ -1,4 +1,8 @@
+.env
+node_modules
 data
 sequentialread-password-manager
 test-server.key
 test-server.pem
+wasm_build/node_modules
+wasm_build/scrypt-wasm
