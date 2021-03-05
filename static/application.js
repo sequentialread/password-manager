@@ -45,11 +45,22 @@
 
 
 (function(app, window, document, undefined){
-  var numberOfWordsInPhrase = 9;
+
+
+  if(sjcl.beware) {
+    sjcl.beware["CBC mode is dangerous because it doesn't protect message integrity."]();
+  }
+    
+  const SUPPORTED_VERSION = 2;
+  const bytesInAUint32 = 4;
+  const aesBlockSizeInBytes = 16;
+  const sha256OutputSizeInBytes = 256/8;
+  const keySizeInBytes = 32;
+
+  var numberOfWordsInPhrase = 4;
   var lengthOfKeySegment = 4;
   var pixelDistanceRequiredForEntropy = 250;
   var hashCountRequiredForEntropy = 3;
-  var hashIndexVersion = 2;
 
   app.cryptoService = new (function CryptoService() {
     var lastKnownOffsetX = 0;
@@ -78,9 +89,40 @@
 
     var currentUserSecret = null;
     var currentUserSecretId = null;
-    this.setSecret = (secret) => {
-      currentUserSecret = sjcl.hash.sha256.hash(secret);
-      currentUserSecretId = `${sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(secret))}-${hashIndexVersion}`;
+    var hexSalt = sjcl.codec.hex.fromBits(sjcl.codec.utf8String.toBits("maple yuan rounds airline few kona ferry volvo hobart regime"));
+    var scryptCpuAndMemoryCost = Math.pow(2, 16);
+    var scryptBlockSize = 32;
+    var scryptKeyLength = 32;
+
+    this.scryptPromises = {};
+    this.scryptWebWorker = new Worker("./static/scryptWebWorker.js");
+    this.scrypt = (input) => {
+      let promise;
+      const hexData = sjcl.codec.hex.fromBits(sjcl.codec.utf8String.toBits(input));
+      promise = new Promise((resolve, reject) => {
+        this.scryptPromises[hexData] = { promise, resolve, reject }; 
+      });
+
+      this.scryptWebWorker.postMessage({
+        salt: hexSalt,
+        data: hexData,
+        cpuAndMemoryCost: scryptCpuAndMemoryCost,
+        blockSize: scryptBlockSize,
+        keyLength: scryptKeyLength
+      });
+
+      return promise;
+    };
+    this.scryptWebWorker.onmessage = (e) => {
+      if(e.data.errors && e.data.errors.length > 0) {
+        this.scryptPromises[e.data.data].reject(e.data.errors);
+      }
+      this.scryptPromises[e.data.data].resolve(e.data.result);
+    };
+    
+    this.setSecret = async (secret) => {
+      currentUserSecret = sjcl.codec.hex.toBits(await this.scrypt(secret));
+      currentUserSecretId = `${sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(secret))}`;
     };
 
     this.getKeyId = () => currentUserSecretId;
@@ -118,7 +160,7 @@
           if(distanceOffsetX >= pixelDistanceRequiredForEntropy
               && distanceOffsetY >= pixelDistanceRequiredForEntropy
               && hashCount >= hashCountRequiredForEntropy) {
-            passphraseArray.push(app.tenThousandMostCommonEnglishWords[Math.abs(entropy) % app.tenThousandMostCommonEnglishWords.length]);
+            passphraseArray.push(app.cryptoWordList[Math.abs(entropy) % app.cryptoWordList.length]);
             distanceOffsetX = 0;
             distanceOffsetY = 0;
             hashCount = 0;
@@ -136,6 +178,180 @@
 
       return this.entropizer;
     };
+
+   
+    
+    const scryptKeyDerivation = (passphrase) => {
+    
+      if(passphrase == "") {
+        return new Uint8Array(keySizeInBytes)
+      }
+    
+      const passphraseBitArray = sjcl.codec.bytes.toBits(stringToUtf8Bytes(passphrase))
+      const saltBytes = stringToUtf8Bytes("kennedy indicated notice experience zinc ot fountain feelings championship")
+      const saltBitArray = sjcl.hash.sha256.hash(sjcl.codec.bytes.toBits(saltBytes))
+      const cpuAndMemoryCostToDerive = 1 << 16
+      const keySizeInBits = keySizeInBytes*8;
+      const keyBitArray = sjcl.misc.scrypt(passphraseBitArray, saltBitArray, cpuAndMemoryCostToDerive, 8, 1, keySizeInBits)
+    
+      return sjcl.codec.bytes.fromBits(keyBitArray)
+    }
+    
+    const encryptString = (plaintextString, keyBytes) => {
+      if ( typeof plaintextString != "string" ) {
+        throw new Error("encryptString() must be passed a string")
+      }
+      return encryptBytes(stringToUtf8Bytes(plaintextString), keyBytes)
+    }
+    
+    const decryptToString = (serializedEncryptedBytes, keyBytes) => {
+      return utf8BytesToString(decryptToBytes(serializedEncryptedBytes, keyBytes));
+    }
+    
+    const decryptToBytes = (serializedEncryptedBytes, keyBytes) => {
+    
+      let encrypted;
+      try {
+        encrypted = parseEncryptedBytes(serializedEncryptedBytes)
+      } catch (err) {
+        throw new Error(strings.errorMessage_FormatErrorX(err));
+      }
+    
+      initializationVectorAndCiphertext = new Uint8Array(encrypted.initializationVector.length+encrypted.ciphertext.length);
+      initializationVectorAndCiphertext.set(encrypted.initializationVector);
+      initializationVectorAndCiphertext.set(encrypted.ciphertext, encrypted.initializationVector.length);
+    
+      const hmac = new sjcl.misc.hmac(sjcl.codec.bytes.toBits(keyBytes), sjcl.hash.sha256);
+    
+      hmac.update(sjcl.codec.bytes.toBits(initializationVectorAndCiphertext))
+      const messageAuthenticationCode = sjcl.codec.bytes.fromBits(hmac.digest());
+    
+      if(!uint8ArrayEquals(messageAuthenticationCode, encrypted.messageAuthenticationCode)) {
+        const wrongPassphraseError = new Error(strings.errorMessage_WrongPassphraseError);
+        wrongPassphraseError.wrongPassphrase = true;
+        throw wrongPassphraseError;
+      }
+    
+      return sjcl.codec.bytes.fromBits(
+        sjcl.mode.cbc.decrypt(
+          new sjcl.cipher.aes(sjcl.codec.bytes.toBits(keyBytes)), 
+          sjcl.codec.bytes.toBits(encrypted.ciphertext), 
+          sjcl.codec.bytes.toBits(encrypted.initializationVector)
+        )
+      );
+    }
+    
+    const encryptBytes = (plaintextBytes, keyBytes) => {
+      if ( !(plaintextBytes instanceof Uint8Array) ) {
+        throw new Error("encryptBytes() must be passed a UInt8Array")
+      }
+    
+      let initializationVector = new Uint8Array(aesBlockSizeInBytes);
+      window.crypto.getRandomValues(initializationVector);
+    
+      let hashOfPlaintext = sjcl.codec.bytes.fromBits(sjcl.hash.sha256.hash(sjcl.codec.bytes.toBits(plaintextBytes)))
+    
+      for(let i = 0; i < initializationVector.length; i++) {
+        initializationVector[i] = initializationVector[i] ^ hashOfPlaintext[i % hashOfPlaintext.length]
+      }
+    
+      const ciphertextBytes = sjcl.codec.bytes.fromBits(
+        sjcl.mode.cbc.encrypt(
+          new sjcl.cipher.aes(sjcl.codec.bytes.toBits(keyBytes)), 
+          sjcl.codec.bytes.toBits(plaintextBytes), 
+          sjcl.codec.bytes.toBits(initializationVector)
+        )
+      );
+    
+      initializationVectorAndCiphertext = new Uint8Array(initializationVector.length + ciphertextBytes.length);
+      initializationVectorAndCiphertext.set(initializationVector);
+      initializationVectorAndCiphertext.set(ciphertextBytes, initializationVector.length);
+    
+      const hmac = new sjcl.misc.hmac(sjcl.codec.bytes.toBits(keyBytes), sjcl.hash.sha256);
+      hmac.update(sjcl.codec.bytes.toBits(initializationVectorAndCiphertext))
+      const messageAuthenticationCode = sjcl.codec.bytes.fromBits(hmac.digest());
+    
+      return serializeEncryptedBytes(initializationVector, ciphertextBytes, messageAuthenticationCode)
+    }
+    
+    function serializeEncryptedBytes(initializationVector, ciphertext, messageAuthenticationCode) {
+      const versionNumber = SUPPORTED_VERSION;
+    
+      const totalLength = (bytesInAUint32 * 4) + initializationVector.length + ciphertext.length + messageAuthenticationCode.length;
+      const buffer = new ArrayBuffer(totalLength);
+      const dataView = new DataView(buffer);
+      let currentOffset = 0;
+    
+      dataView.setUint32(currentOffset, versionNumber, true);
+      currentOffset += bytesInAUint32;
+    
+      const writeByteArray = (byteArray) => {
+        dataView.setUint32(currentOffset, byteArray.length, true);
+        currentOffset += bytesInAUint32;
+        for(let i = 0; i < byteArray.length; i++) {
+          dataView.setUint8(currentOffset + i, byteArray[i], true)
+        }
+        currentOffset += byteArray.length;
+      }
+    
+      writeByteArray(initializationVector);
+      writeByteArray(ciphertext);
+      writeByteArray(messageAuthenticationCode);
+      
+      return new Uint8Array(buffer);
+    }
+    
+    function parseEncryptedBytes(serializedEncryptedBytes) {
+      const toReturn = {};
+      //console.log(serializedEncryptedBytes.buffer);
+      const dataView = new DataView(
+        serializedEncryptedBytes.buffer, 
+        serializedEncryptedBytes.byteOffset, 
+        serializedEncryptedBytes.length
+      );
+      let currentOffset = 0;
+      const versionNumber = dataView.getUint32(currentOffset, true);
+      currentOffset += bytesInAUint32;
+      if(versionNumber != SUPPORTED_VERSION) {
+        //console.log(serializedEncryptedBytes.toString('utf-8'))
+        throw new Error(`unsupported serialization version number ${versionNumber}`)
+      }
+    
+      const readByteArray = (name, expectedLength) => {
+        const length = dataView.getUint32(currentOffset, true);
+        currentOffset += bytesInAUint32;
+        if(expectedLength > 0 && length != expectedLength) {
+          throw new Error(`given ${name}Length (${length}) != expectedLength (${expectedLength})`)
+        }
+        toReturn[name] = new Uint8Array(length);
+        for(let i = 0; i < length; i++) {
+          toReturn[name][i] = dataView.getUint8(currentOffset + i, true)
+          
+        }
+        currentOffset += length;
+      }
+    
+      readByteArray("initializationVector", aesBlockSizeInBytes)
+      readByteArray("ciphertext", -1)
+      readByteArray("messageAuthenticationCode", sha256OutputSizeInBytes)
+    
+      return toReturn;
+    }
+    
+    function uint8ArrayEquals(a, b) {
+      if (a.length != b.length) return false;
+      for (var i = 0 ; i != a.length ; i++) {
+        if (a[i] != b[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+    
+    
+    
+
+
   })();
 })(window.sequentialReadPasswordManager, window, document);
 
@@ -704,12 +920,18 @@
     };
 
     var onContinueClicked = () => {
-      cryptoService.setSecret(document.getElementById('encryption-secret').value);
-      document.getElementById('logout-link-container').style.display = "inline";
-      document.getElementById('encryption-secret').value = '';
-      document.getElementById('encryption-secret').type = 'password';
-      navController.navigate('file-list-content');
-      fileListController.load();
+      document.getElementById('progress-container').style.display = 'block';
+
+      cryptoService.setSecret(document.getElementById('encryption-secret').value).then(() => {
+
+        document.getElementById('progress-container').style.display = 'none';
+
+        document.getElementById('logout-link-container').style.display = "inline";
+        document.getElementById('encryption-secret').value = '';
+        document.getElementById('encryption-secret').type = 'password';
+        navController.navigate('file-list-content');
+        fileListController.load();
+      });
     };
 
     var KEYCODE_ENTER = 13;

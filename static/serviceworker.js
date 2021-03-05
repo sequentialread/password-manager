@@ -13,7 +13,7 @@ self.addEventListener('install', event => {
         '/static/awsClient.js',
         '/static/scryptWebWorker.js',
         '/static/vendor/sjcl.js',
-        '/static/vendor/tenThousandMostCommonEnglishWords.js',
+        '/static/vendor/cryptoWordList.js',
       ]);
     })
   }));

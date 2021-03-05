@@ -18,7 +18,7 @@
     };
   </script>
   <script src="static/vendor/sjcl.js"></script> 
-  <script src="static/vendor/tenThousandMostCommonEnglishWords.js"></script>
+  <script src="static/vendor/cryptoWordList.js"></script>
   <script src="static/awsClient.js"></script>
   <link rel="stylesheet" type="text/css" href="static/application.css">
 </head>

@@ -159,7 +159,7 @@ func reloadStaticFiles() {
 			"static/awsClient.js",
 			"static/application.css",
 			"static/vendor/sjcl.js",
-			"static/vendor/tenThousandMostCommonEnglishWords.js",
+			"static/vendor/cryptoWordList.js",
 		},
 	)[:6]
 
