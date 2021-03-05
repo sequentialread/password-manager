@@ -14,7 +14,7 @@
       return
     }
   
-    navigator.serviceWorker.register('/serviceworker.js').then(
+    navigator.serviceWorker.register('/serviceworker.js', {scope: "/"}).then(
       (reg) => {
         if(reg.installing) {
           console.log('Service worker installing, will reload');
@@ -36,7 +36,7 @@
     );
     navigator.serviceWorker.addEventListener('message', event => {
       if(event.data.log) {
-        console.log(event.data.log);
+        console.log(`serviceworker: ${event.data.log}`);
       }
     });
   });
@@ -221,6 +221,7 @@
     });
 
 })(window.sequentialReadPasswordManager, window, document);
+
 
 
 (function(app, window, document, undefined){

@@ -4,15 +4,14 @@ const cacheVersion = 'v1';
 self.addEventListener('install', event => {
 
   event.waitUntil(clients.get(event.clientId).then(client => {
-    // if(client) {
-    //   client.postMessage({ log: "asd222" });
-    // }
+
     return caches.open(cacheVersion).then(cache => {
       return cache.addAll([
         '/',
         '/static/application.css',
         '/static/application.js',
         '/static/awsClient.js',
+        '/static/scryptWebWorker.js',
         '/static/vendor/sjcl.js',
         '/static/vendor/tenThousandMostCommonEnglishWords.js',
       ]);
@@ -52,10 +51,10 @@ self.addEventListener('fetch', event => {
           const url = new URL(event.request.url);
           const isServerStorage = url.pathname.startsWith('/storage');
           const isVersion = url.pathname == "/version";
-          const isAws = url.host.includes('s3') && (url.host.includes('aws') || url.host.includes('amazon'));
+          const isBackblaze = url.host.includes('backblaze.com');
           const isPut = event.request.method == "PUT";
 
-          if(!isServerStorage && !isVersion && !isAws && !isPut) {
+          if(!isServerStorage && !isVersion && !isBackblaze && !isPut) {
             // response may be used only once
             // we need to save clone to put one copy in cache
             // and serve second one

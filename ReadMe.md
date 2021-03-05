@@ -5,9 +5,9 @@ This is a Golang / HTML5  / vanilla JavaScript web-application which stores encr
 
  - `localStorage` in the browser
  - on disk next to the HTTP server binary
- - in an Amazon S3 bucket
+ - in a Backblaze B2 bucket
 
-![screenshot](screenshot.png)
+![screenshot](readme/screenshot.png)
 
 [Try it! (https://pwm.sequentialread.com) ](https://pwm.sequentialread.com)
 
@@ -17,11 +17,11 @@ OR run it yourself in docker:
 docker run \
   -p 8073:8073 \
   -v "/Users/exampleUser/Desktop/encrypted-passwords:/data" \
-  -e SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE \
-  -e SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
-  -e SEQUENTIAL_READ_PWM_S3_BUCKET_NAME=my-encrypted-password-bucket \
-  -e SEQUENTIAL_READ_PWM_S3_BUCKET_REGION=us-west-2 \
-  sequentialread/sequentialread-password-manager:1.1.0
+  -e SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID=EXAMPLE77f599784EXAMPLE \
+  -e SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY=EXAMPLEEXAMPLEEXAMPLEEXAMPLEKEY \
+  -e SEQUENTIAL_READ_PWM_S3_BUCKET_NAME=sequentialread-password-manager \
+  -e SEQUENTIAL_READ_PWM_S3_BUCKET_REGION=us-west-000 \
+  sequentialread/sequentialread-password-manager:2.0.0
 ```
 
 See "Hosting it yourself" for more information.
@@ -29,6 +29,15 @@ See "Hosting it yourself" for more information.
 ## Security
 
 First and foremost, the application is easy to audit since it has only one dependency: sjcl.js, AKA the Stanford JavaScript Crypto Library.
+
+You can re-produce the sjcl.js I am using like so: 
+
+```
+git clone https://github.com/bitwiseshiftleft/sjcl
+cd sjcl
+./configure --without-all --with-ccm --with-sha256 --with-codecBase64 --with-codecHex --with-codecString --with-hmac --with-codecBytes --with-convenience
+make
+```
 
 There is nothing that pulls in dependencies, no bundling step, etc. There is only one place where `XMLHttpRequest` is created, and the request body is encrypted in the same place. Same goes for `localStorage`.
 
@@ -68,46 +77,75 @@ Casual remote attackers probably won't have access to the ciphertext since they 
 
 ## Hosting it yourself
 
-You should create a separate IAM user in AWS which only has access to the bucket. This is the policy I used for that user. Note that the user does not have the capability to list the bucket contents, only to get and put objects. This is very important for security reasons, otherwise a remote attacker would have a much easier time trying to break the encryption, because they would have easy access to the ciphertext. 
+When you are creating the backblaze bucket, make sure you enable "Files in bucket are public". 
+
+![screenshot of bucket configuruation](readme/bucket.png)
+
+You will also have to enable cors on the bucking.  Enabling CORS in the UI will not work, you have to manually enable it on the bucket using the backblaze API. Make sure you set `exposeHeaders`, otherwise it won't work. This seems like a backblaze bug :(
 
 ```
-{
-    "Version": "2012-10-17",
-    "Statement": [
+BACKBLAZE_KEY_ID=""
+BACKBLAZE_SECRET_KEY=""
+BUCKET_NAME="sequentialread-password-manager"
+KEY_NAME="sequentialread-password-manager"
+
+AUTH_JSON="$(curl -sS -u "$BACKBLAZE_KEY_ID:$BACKBLAZE_SECRET_KEY" https://api.backblazeb2.com/b2api/v1/b2_authorize_account)"
+AUTHORIZATION_TOKEN="$(echo "$AUTH_JSON" | jq -r .authorizationToken)"
+ACCOUNT_ID="$(echo "$AUTH_JSON" | jq -r .accountId)"
+API_URL="$(echo "$AUTH_JSON" | jq -r .apiUrl)"
+
+BUCKET_ID="$(curl -sS -H "Authorization: $AUTHORIZATION_TOKEN" "$API_URL/b2api/v2/b2_list_buckets?accountId=$ACCOUNT_ID&bucketName=$BUCKET_NAME" | jq -r .buckets[0].bucketId)"
+
+curl -X POST -H "Authorization: $AUTHORIZATION_TOKEN" -H "Content-Type: application/json" "$API_URL/b2api/v2/b2_update_bucket" -d '{
+      "accountId": "'"$ACCOUNT_ID"'",
+      "bucketId": "'"$BUCKET_ID"'",
+      "corsRules": [
         {
-            "Effect": "Allow",
-            "Action": [
-                "s3:GetBucketLocation"
-            ],
-            "Resource": "arn:aws:s3:::sequentialread-pwm"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "s3:PutObject",
-                "s3:GetObject",
-                "s3:DeleteObject"
-            ],
-            "Resource": "arn:aws:s3:::sequentialread-pwm/*"
+          "allowedHeaders": [ "*" ],
+          "allowedOperations": [
+            "s3_head",
+            "s3_get",
+            "s3_put"
+          ],
+          "allowedOrigins": [ "*" ],
+          "exposeHeaders": null,
+          "corsRuleName": "s3DownloadFromAnyOrigin",
+          "maxAgeSeconds": 3600
         }
-    ]
-}
-```
+      ]
+}'
 
-You will also need to configure CORS on the bucket. This is the CORS configuration I used on the bucket:
 
 ```
-<?xml version="1.0" encoding="UTF-8"?>
-<CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-    <CORSRule>
-        <AllowedOrigin>*</AllowedOrigin>
-        <AllowedMethod>GET</AllowedMethod>
-        <AllowedMethod>DELETE</AllowedMethod>
-        <AllowedMethod>PUT</AllowedMethod>
-        <MaxAgeSeconds>3000</MaxAgeSeconds>
-        <AllowedHeader>Authorization</AllowedHeader>
-        <AllowedHeader>x-amz-content-sha256</AllowedHeader>
-        <AllowedHeader>x-amz-date</AllowedHeader>
-    </CORSRule>
-</CORSConfiguration>
+
+
+You have to create the backblaze application key using the API because the web interface wont let your manually select the specific capabilities for the key.
+
+Creating the Backblaze application key which is limited to the bucket & can't list the files in the bucket:
+
+```
+BACKBLAZE_KEY_ID=""
+BACKBLAZE_SECRET_KEY=""
+BUCKET_NAME="sequentialread-password-manager"
+KEY_NAME="sequentialread-password-manager"
+
+AUTH_JSON="$(curl -sS -u "$BACKBLAZE_KEY_ID:$BACKBLAZE_SECRET_KEY" https://api.backblazeb2.com/b2api/v1/b2_authorize_account)"
+AUTHORIZATION_TOKEN="$(echo "$AUTH_JSON" | jq -r .authorizationToken)"
+ACCOUNT_ID="$(echo "$AUTH_JSON" | jq -r .accountId)"
+
+BUCKET_ID="$(curl -sS -H "Authorization: $AUTHORIZATION_TOKEN" "$API_URL/b2api/v2/b2_list_buckets?accountId=$ACCOUNT_ID&bucketName=$BUCKET_NAME" | jq -r .buckets[0].bucketId)"
+
+curl -X POST -H "Authorization: $AUTHORIZATION_TOKEN" -H "Content-Type: application/json" "$API_URL/b2api/v2/b2_create_key" -d '{"accountId": "'"$ACCOUNT_ID"'", "capabilities": ["listBuckets", "readFiles", "writeFiles"], "keyName": "'"$KEY_NAME"'", "bucketId": "'"$BUCKET_ID"'"}'
+
+```
+
+My bucket S3 API endpoint (displayed under the bucket in the backblaze web interface) was `s3.us-west-000.backblazeb2.com`.
+
+When setting the environment variables, I set them like this: 
+
+```
+SEQUENTIAL_READ_PWM_S3_BUCKET_NAME=sequentialread-password-manager
+SEQUENTIAL_READ_PWM_S3_BUCKET_REGION=us-west-000
+SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID=0003ea77f5997840000000015
+SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY=EXAMPLEEXAMPLEEXAMPLEEXAMPLE
 ```
