@@ -17,6 +17,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"./godotenv"
 )
 
 var appPort = "8073"
@@ -121,8 +123,11 @@ func loadTemplate(filename string) *template.Template {
 	return newTemplate
 }
 
-func hashFiles(filenames []string) string {
+func hashFiles(seeds []string, filenames []string) string {
 	hash := sha256.New()
+	for _, seed := range seeds {
+		hash.Write([]byte(seed))
+	}
 	for _, filename := range filenames {
 		fileContents, err := ioutil.ReadFile(filename)
 		if err != nil {
@@ -134,24 +139,35 @@ func hashFiles(filenames []string) string {
 }
 
 func reloadStaticFiles() {
-	application.Version = hashFiles([]string{
-		"index.html.gotemplate",
-		"static/application.js",
-		"static/serviceworker.js",
-		"static/awsClient.js",
-		"static/application.css",
-		"static/vendor/sjcl.js",
-		"static/vendor/tenThousandMostCommonEnglishWords.js",
-	})[:6]
-	application.AWSAccessKeyId = os.ExpandEnv("$SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID")
-	application.AWSSecretAccessKey = os.ExpandEnv("$SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY")
-	application.S3BucketName = os.ExpandEnv("$SEQUENTIAL_READ_PWM_S3_BUCKET_NAME")
-	application.S3BucketRegion = os.ExpandEnv("$SEQUENTIAL_READ_PWM_S3_BUCKET_REGION")
+
+	application.AWSAccessKeyId = os.Getenv("SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID")
+	application.AWSSecretAccessKey = os.Getenv("SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY")
+	application.S3BucketName = os.Getenv("SEQUENTIAL_READ_PWM_S3_BUCKET_NAME")
+	application.S3BucketRegion = os.Getenv("SEQUENTIAL_READ_PWM_S3_BUCKET_REGION")
+
+	application.Version = hashFiles(
+		[]string{
+			application.AWSAccessKeyId,
+			application.AWSSecretAccessKey,
+			application.S3BucketName,
+			application.S3BucketRegion,
+		},
+		[]string{
+			"index.html.gotemplate",
+			"static/application.js",
+			"static/serviceworker.js",
+			"static/awsClient.js",
+			"static/application.css",
+			"static/vendor/sjcl.js",
+			"static/vendor/tenThousandMostCommonEnglishWords.js",
+		},
+	)[:6]
 
 	indexTemplate = loadTemplate("index.html.gotemplate")
 }
 
 func main() {
+	godotenv.Load()
 
 	dataPath = filepath.Join(".", "data")
 	os.MkdirAll(dataPath, os.ModePerm)
