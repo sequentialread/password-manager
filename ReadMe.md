@@ -47,9 +47,9 @@ It was designed that way to strengthen the claim that "everything it sends out f
 
  It uses the [Service Worker API](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers) to ensure that even if my server goes down, the app still loads.
 
- It also has its own AWS Credential with access to the bucket, so you can still access S3 if my server goes down.
+ It also has its own Backblaze credential with access to the bucket, so you can still access your passwords from a new device if my server goes down.
 
- It will also work even if your device has no internet connection, of course any changes will not be sent to the server or to S3 until you connect again and prompt the app to update the file again.
+ It will also work even if your device has no internet connection, of course any changes will not be sent to the server or to Backblaze until you connect again and prompt the app to update the file again.
 
  It uses a naive approach to keep all 3 data stores in sync: When writing, it will attempt to write to all 3 and tolerate failures. When reading, it will compare the `lastUpdated` timestamps on all versions that it received, and if they don't match or if one is missing, it will issue a `PUT` with the most up-to-date version.
 
@@ -81,13 +81,12 @@ When you are creating the backblaze bucket, make sure you enable "Files in bucke
 
 ![screenshot of bucket configuruation](readme/bucket.png)
 
-You will also have to enable cors on the bucking.  Enabling CORS in the UI will not work, you have to manually enable it on the bucket using the backblaze API. Make sure you set `exposeHeaders`, otherwise it won't work. This seems like a backblaze bug :(
+You will also have to enable CORS on the bucket.  Enabling CORS in the UI will not work, you have to manually enable it on the bucket using the backblaze API. 
 
 ```
 BACKBLAZE_KEY_ID=""
 BACKBLAZE_SECRET_KEY=""
 BUCKET_NAME="sequentialread-password-manager"
-KEY_NAME="sequentialread-password-manager"
 
 AUTH_JSON="$(curl -sS -u "$BACKBLAZE_KEY_ID:$BACKBLAZE_SECRET_KEY" https://api.backblazeb2.com/b2api/v1/b2_authorize_account)"
 AUTHORIZATION_TOKEN="$(echo "$AUTH_JSON" | jq -r .authorizationToken)"
@@ -119,7 +118,7 @@ curl -X POST -H "Authorization: $AUTHORIZATION_TOKEN" -H "Content-Type: applicat
 ```
 
 
-You have to create the backblaze application key using the API because the web interface wont let your manually select the specific capabilities for the key.
+You also have to create the backblaze application key using the API because the web interface wont let your manually select the specific capabilities for the key.
 
 Creating the Backblaze application key which is limited to the bucket & can't list the files in the bucket:
 
@@ -132,6 +131,7 @@ KEY_NAME="sequentialread-password-manager"
 AUTH_JSON="$(curl -sS -u "$BACKBLAZE_KEY_ID:$BACKBLAZE_SECRET_KEY" https://api.backblazeb2.com/b2api/v1/b2_authorize_account)"
 AUTHORIZATION_TOKEN="$(echo "$AUTH_JSON" | jq -r .authorizationToken)"
 ACCOUNT_ID="$(echo "$AUTH_JSON" | jq -r .accountId)"
+API_URL="$(echo "$AUTH_JSON" | jq -r .apiUrl)"
 
 BUCKET_ID="$(curl -sS -H "Authorization: $AUTHORIZATION_TOKEN" "$API_URL/b2api/v2/b2_list_buckets?accountId=$ACCOUNT_ID&bucketName=$BUCKET_NAME" | jq -r .buckets[0].bucketId)"
 
@@ -139,7 +139,7 @@ curl -X POST -H "Authorization: $AUTHORIZATION_TOKEN" -H "Content-Type: applicat
 
 ```
 
-My bucket S3 API endpoint (displayed under the bucket in the backblaze web interface) was `s3.us-west-000.backblazeb2.com`.
+My bucket's S3-compatible-API endpoint (displayed under the bucket in the backblaze web interface) was `s3.us-west-000.backblazeb2.com`.
 
 When setting the environment variables, I set them like this: 
 
