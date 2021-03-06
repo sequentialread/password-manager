@@ -64,8 +64,10 @@
   var currentUserSecret = null;
   var currentUserSecretId = null;
   var hexSalt = sjcl.codec.hex.fromBits(sjcl.codec.utf8String.toBits("maple yuan rounds airline few kona ferry volvo hobart regime"));
-  var scryptCpuAndMemoryCost = Math.pow(2, 16);
-  var scryptBlockSize = 32;
+  var derivationCpuAndMemoryCost = Math.pow(2, 16);
+  var derivationBlockSize = 32;
+  var prngCpuAndMemoryCost = Math.pow(2, 9);
+  var prngBlockSize = 8;
   var scryptKeyLength = 32;
 
 
@@ -95,7 +97,7 @@
     document.body.addEventListener('touchmove', mouseOrTouchMoved, false);
     this.scryptPromises = {};
     this.scryptWebWorker = new Worker("./static/scryptWebWorker.js");
-    this.scrypt = (input) => {
+    this.scrypt = (input, cpuAndMemoryCost, blockSize) => {
       let promise;
       const hexData = sjcl.codec.hex.fromBits(sjcl.codec.utf8String.toBits(input));
       promise = new Promise((resolve, reject) => {
@@ -105,8 +107,8 @@
       this.scryptWebWorker.postMessage({
         salt: hexSalt,
         data: hexData,
-        cpuAndMemoryCost: scryptCpuAndMemoryCost,
-        blockSize: scryptBlockSize,
+        cpuAndMemoryCost: cpuAndMemoryCost,
+        blockSize: blockSize,
         keyLength: scryptKeyLength
       });
 
@@ -120,7 +122,7 @@
     };
     
     this.setSecret = async (secret) => {
-      currentUserSecret = sjcl.codec.hex.toBits(await this.scrypt(secret));
+      currentUserSecret = sjcl.codec.hex.toBits(await this.scrypt(secret, derivationCpuAndMemoryCost, derivationBlockSize));
       currentUserSecretId = `${sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(secret))}`;
     };
 
@@ -139,6 +141,7 @@
       var entropy = 0;
       var lastCollectedX = 0;
       var lastCollectedY = 0;
+      var currentlyHashing = false;
       var passphraseArray = [];
 
       var collectEntropy = window.setInterval(() => {
@@ -147,18 +150,28 @@
           this.entropizer.passphrase = passphraseArray.join(' ');
           window.clearInterval(collectEntropy);
         } else {
-          if(lastCollectedX != lastKnownOffsetX && lastCollectedY != lastKnownOffsetY) {
+          if(lastCollectedX != lastKnownOffsetX && lastCollectedY != lastKnownOffsetY && !currentlyHashing) {
             lastCollectedX = lastKnownOffsetX;
             lastCollectedY = lastKnownOffsetY;
-            var hashBits = sjcl.hash.sha256.hash(`${lastTimeStamp}${lastKnownOffsetX}${lastKnownOffsetY}${distanceOffsetX}${distanceOffsetY}${lastHash}`);
-            lastHash = sjcl.codec.base64.fromBits(hashBits);
-            entropy = entropy ^ hashBits[hashBits.length-1];
-            hashCount ++;
+            currentlyHashing = true;
+            const osRandomBytes = new Uint8Array(16);
+            window.crypto.getRandomValues(osRandomBytes);
+            const osRandomBytesStr = sjcl.codec.base64.fromBits(sjcl.codec.bytes.toBits(osRandomBytes));
+            const toHashString = `${osRandomBytesStr}${lastTimeStamp}${lastKnownOffsetX}${lastKnownOffsetY}${distanceOffsetX}${distanceOffsetY}${lastHash}`;
+            const toHashHex = sjcl.codec.hex.fromBits(sjcl.codec.utf8String.toBits(toHashString));
+            this.scrypt(toHashHex, prngCpuAndMemoryCost, prngBlockSize).then(resultHex => {
+              const hashBits = sjcl.codec.hex.toBits(resultHex);
+              lastHash = sjcl.codec.base64.fromBits(hashBits);
+              entropy = entropy ^ hashBits[hashBits.length-1];
+              hashCount ++;
+              currentlyHashing = false;
+            });
           }
 
           if(distanceOffsetX >= pixelDistanceRequiredForEntropy
               && distanceOffsetY >= pixelDistanceRequiredForEntropy
               && hashCount >= hashCountRequiredForEntropy) {
+            console.log(Math.abs(entropy) % app.cryptoWordList.length);
             passphraseArray.push(app.cryptoWordList[Math.abs(entropy) % app.cryptoWordList.length]);
             distanceOffsetX = 0;
             distanceOffsetY = 0;
