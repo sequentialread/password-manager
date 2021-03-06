@@ -58,9 +58,16 @@
   const keySizeInBytes = 32;
 
   var numberOfWordsInPhrase = 4;
-  var lengthOfKeySegment = 4;
   var pixelDistanceRequiredForEntropy = 250;
-  var hashCountRequiredForEntropy = 3;
+  var hashCountRequiredForEntropy = 6;
+
+  var currentUserSecret = null;
+  var currentUserSecretId = null;
+  var hexSalt = sjcl.codec.hex.fromBits(sjcl.codec.utf8String.toBits("maple yuan rounds airline few kona ferry volvo hobart regime"));
+  var scryptCpuAndMemoryCost = Math.pow(2, 16);
+  var scryptBlockSize = 32;
+  var scryptKeyLength = 32;
+
 
   app.cryptoService = new (function CryptoService() {
     var lastKnownOffsetX = 0;
@@ -86,14 +93,6 @@
 
     document.addEventListener('mousemove', mouseOrTouchMoved, false);
     document.body.addEventListener('touchmove', mouseOrTouchMoved, false);
-
-    var currentUserSecret = null;
-    var currentUserSecretId = null;
-    var hexSalt = sjcl.codec.hex.fromBits(sjcl.codec.utf8String.toBits("maple yuan rounds airline few kona ferry volvo hobart regime"));
-    var scryptCpuAndMemoryCost = Math.pow(2, 16);
-    var scryptBlockSize = 32;
-    var scryptKeyLength = 32;
-
     this.scryptPromises = {};
     this.scryptWebWorker = new Worker("./static/scryptWebWorker.js");
     this.scrypt = (input) => {
