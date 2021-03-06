@@ -66,7 +66,7 @@ func storage(response http.ResponseWriter, request *http.Request) {
 			return
 		}
 		defer file.Close()
-		response.Header().Add("Content-Type", "application/json")
+		response.Header().Add("Content-Type", "application/octet-stream")
 		io.Copy(response, file)
 	} else if request.Method == "PUT" {
 

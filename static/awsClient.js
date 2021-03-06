@@ -99,14 +99,20 @@
 
       var bodyHash = EMPTY_BODY_SHA256;
       if(httpMethod == "PUT" || httpMethod == "POST") {
-        if(typeof objectValue == "object") {
-          headers["content-type"] = "application/json";
-          objectValue = JSON.stringify(objectValue, 0, 2);
+        let objectValueBytes;
+        if(objectValue instanceof Uint8Array) {
+          objectValueBytes = objectValue
         } else {
-          headers["content-type"] = "text/plain";
+          if(typeof objectValue == "object") {
+            headers["content-type"] = "application/json";
+            objectValue = JSON.stringify(objectValue, 0, 2);
+          } else {
+            headers["content-type"] = "text/plain";
+          }
+
+          objectValueBytes = sjcl.codec.bytes.fromBits(sjcl.codec.utf8String.toBits(objectValue));
         }
 
-        const objectValueBytes = sjcl.codec.bytes.fromBits(sjcl.codec.utf8String.toBits(objectValue));
         headers["Content-MD5"] = sjcl.codec.base64.fromBits(sjcl.codec.hex.toBits(app.md5(objectValueBytes)));
 
         headers["content-length"] = String(objectValueBytes.length);

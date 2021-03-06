@@ -35,7 +35,7 @@ You can re-produce the sjcl.js I am using like so:
 ```
 git clone https://github.com/bitwiseshiftleft/sjcl
 cd sjcl
-./configure --without-all --with-ccm --with-sha256 --with-codecBase64 --with-codecHex --with-codecString --with-hmac --with-codecBytes --with-convenience
+./configure --without-all --with-cbc --with-sha256 --with-codecBase64 --with-codecHex --with-codecString --with-hmac --with-codecBytes
 make
 ```
 

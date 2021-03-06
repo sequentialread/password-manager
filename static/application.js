@@ -51,11 +51,10 @@
     sjcl.beware["CBC mode is dangerous because it doesn't protect message integrity."]();
   }
     
-  const SUPPORTED_VERSION = 2;
+  const SUPPORTED_VERSION = 3;
   const bytesInAUint32 = 4;
   const aesBlockSizeInBytes = 16;
   const sha256OutputSizeInBytes = 256/8;
-  const keySizeInBytes = 32;
 
   var numberOfWordsInPhrase = 4;
   var pixelDistanceRequiredForEntropy = 250;
@@ -64,7 +63,7 @@
   var currentUserSecret = null;
   var currentUserSecretId = null;
   var hexSalt = sjcl.codec.hex.fromBits(sjcl.codec.utf8String.toBits("maple yuan rounds airline few kona ferry volvo hobart regime"));
-  var derivationCpuAndMemoryCost = Math.pow(2, 16);
+  var derivationCpuAndMemoryCost = Math.pow(2, 14);
   var derivationBlockSize = 32;
   var prngCpuAndMemoryCost = Math.pow(2, 9);
   var prngBlockSize = 8;
@@ -123,17 +122,23 @@
     
     this.setSecret = async (secret) => {
       currentUserSecret = sjcl.codec.hex.toBits(await this.scrypt(secret, derivationCpuAndMemoryCost, derivationBlockSize));
-      currentUserSecretId = `${sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(secret))}`;
+      currentUserSecretId = sjcl.hash.sha256.hash(secret);
     };
 
-    this.getKeyId = () => currentUserSecretId;
+    this.getKeyId = () => sjcl.codec.hex.fromBits(currentUserSecretId);
 
-    this.encrypt = (plaintextString) => sjcl.encrypt(currentUserSecret, plaintextString);
-    this.decrypt = (cyphertextString) => sjcl.decrypt(currentUserSecret, cyphertextString);
+    this.encrypt = (plaintextString) => {
+      const plaintextBits =  sjcl.codec.utf8String.toBits(plaintextString);
+      return encryptBits(plaintextBits, currentUserSecret, currentUserSecretId);
+    };
+    this.decrypt = (cyphertextBytes) => {
+      const plaintextBits = decryptToBits(cyphertextBytes, currentUserSecret, currentUserSecretId);
+      return sjcl.codec.utf8String.fromBits(plaintextBits);
+    };
 
     this.hasSecret = () => currentUserSecret != null;
 
-    this.hashWithSecretId = (input) => sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(`${currentUserSecretId}/${input}`));
+    this.hashWithSecretId = (input) => sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash(`${this.getKeyId()}/${input}`));
 
     this.getEntropizer = () => {
       this.entropizer = {entropyScore:0};
@@ -190,78 +195,44 @@
 
       return this.entropizer;
     };
-
-   
     
-    const scryptKeyDerivation = (passphrase) => {
-    
-      if(passphrase == "") {
-        return new Uint8Array(keySizeInBytes)
-      }
-    
-      const passphraseBitArray = sjcl.codec.bytes.toBits(stringToUtf8Bytes(passphrase))
-      const saltBytes = stringToUtf8Bytes("kennedy indicated notice experience zinc ot fountain feelings championship")
-      const saltBitArray = sjcl.hash.sha256.hash(sjcl.codec.bytes.toBits(saltBytes))
-      const cpuAndMemoryCostToDerive = 1 << 16
-      const keySizeInBits = keySizeInBytes*8;
-      const keyBitArray = sjcl.misc.scrypt(passphraseBitArray, saltBitArray, cpuAndMemoryCostToDerive, 8, 1, keySizeInBits)
-    
-      return sjcl.codec.bytes.fromBits(keyBitArray)
-    }
-    
-    const encryptString = (plaintextString, keyBytes) => {
-      if ( typeof plaintextString != "string" ) {
-        throw new Error("encryptString() must be passed a string")
-      }
-      return encryptBytes(stringToUtf8Bytes(plaintextString), keyBytes)
-    }
-    
-    const decryptToString = (serializedEncryptedBytes, keyBytes) => {
-      return utf8BytesToString(decryptToBytes(serializedEncryptedBytes, keyBytes));
-    }
-    
-    const decryptToBytes = (serializedEncryptedBytes, keyBytes) => {
+    const decryptToBits = (serializedEncryptedBytes, keyBits, keyIdBits) => {
     
       let encrypted;
       try {
         encrypted = parseEncryptedBytes(serializedEncryptedBytes)
       } catch (err) {
-        throw new Error(strings.errorMessage_FormatErrorX(err));
+        throw new Error(`FormatError: File format was different from expected: ${err}: ${err.stack}`);
       }
     
-      initializationVectorAndCiphertext = new Uint8Array(encrypted.initializationVector.length+encrypted.ciphertext.length);
+      const initializationVectorAndCiphertext = new Uint8Array(encrypted.initializationVector.length+encrypted.ciphertext.length);
       initializationVectorAndCiphertext.set(encrypted.initializationVector);
       initializationVectorAndCiphertext.set(encrypted.ciphertext, encrypted.initializationVector.length);
     
-      const hmac = new sjcl.misc.hmac(sjcl.codec.bytes.toBits(keyBytes), sjcl.hash.sha256);
+      const hmac = new sjcl.misc.hmac(keyIdBits, sjcl.hash.sha256);
     
       hmac.update(sjcl.codec.bytes.toBits(initializationVectorAndCiphertext))
       const messageAuthenticationCode = sjcl.codec.bytes.fromBits(hmac.digest());
     
       if(!uint8ArrayEquals(messageAuthenticationCode, encrypted.messageAuthenticationCode)) {
-        const wrongPassphraseError = new Error(strings.errorMessage_WrongPassphraseError);
+        const wrongPassphraseError = new Error("WrongPassphraseError: MessageAuthenticationCode does not match");
         wrongPassphraseError.wrongPassphrase = true;
         throw wrongPassphraseError;
       }
     
-      return sjcl.codec.bytes.fromBits(
-        sjcl.mode.cbc.decrypt(
-          new sjcl.cipher.aes(sjcl.codec.bytes.toBits(keyBytes)), 
-          sjcl.codec.bytes.toBits(encrypted.ciphertext), 
-          sjcl.codec.bytes.toBits(encrypted.initializationVector)
-        )
+      return sjcl.mode.cbc.decrypt(
+        new sjcl.cipher.aes(keyBits), 
+        sjcl.codec.bytes.toBits(encrypted.ciphertext), 
+        sjcl.codec.bytes.toBits(encrypted.initializationVector)
       );
     }
     
-    const encryptBytes = (plaintextBytes, keyBytes) => {
-      if ( !(plaintextBytes instanceof Uint8Array) ) {
-        throw new Error("encryptBytes() must be passed a UInt8Array")
-      }
+    const encryptBits = (plaintextBits, keyBits, keyIdBits) => {
     
       let initializationVector = new Uint8Array(aesBlockSizeInBytes);
       window.crypto.getRandomValues(initializationVector);
     
-      let hashOfPlaintext = sjcl.codec.bytes.fromBits(sjcl.hash.sha256.hash(sjcl.codec.bytes.toBits(plaintextBytes)))
+      let hashOfPlaintext = sjcl.codec.bytes.fromBits(sjcl.hash.sha256.hash(plaintextBits))
     
       for(let i = 0; i < initializationVector.length; i++) {
         initializationVector[i] = initializationVector[i] ^ hashOfPlaintext[i % hashOfPlaintext.length]
@@ -269,17 +240,17 @@
     
       const ciphertextBytes = sjcl.codec.bytes.fromBits(
         sjcl.mode.cbc.encrypt(
-          new sjcl.cipher.aes(sjcl.codec.bytes.toBits(keyBytes)), 
-          sjcl.codec.bytes.toBits(plaintextBytes), 
+          new sjcl.cipher.aes(keyBits), 
+          plaintextBits, 
           sjcl.codec.bytes.toBits(initializationVector)
         )
       );
     
-      initializationVectorAndCiphertext = new Uint8Array(initializationVector.length + ciphertextBytes.length);
+      const initializationVectorAndCiphertext = new Uint8Array(initializationVector.length + ciphertextBytes.length);
       initializationVectorAndCiphertext.set(initializationVector);
       initializationVectorAndCiphertext.set(ciphertextBytes, initializationVector.length);
     
-      const hmac = new sjcl.misc.hmac(sjcl.codec.bytes.toBits(keyBytes), sjcl.hash.sha256);
+      const hmac = new sjcl.misc.hmac(keyIdBits, sjcl.hash.sha256);
       hmac.update(sjcl.codec.bytes.toBits(initializationVectorAndCiphertext))
       const messageAuthenticationCode = sjcl.codec.bytes.fromBits(hmac.digest());
     
@@ -316,11 +287,12 @@
     function parseEncryptedBytes(serializedEncryptedBytes) {
       const toReturn = {};
       //console.log(serializedEncryptedBytes.buffer);
-      const dataView = new DataView(
-        serializedEncryptedBytes.buffer, 
-        serializedEncryptedBytes.byteOffset, 
-        serializedEncryptedBytes.length
-      );
+      let dataView;
+      if(serializeEncryptedBytes.) {
+        dataView = new DataView(serializedEncryptedBytes);
+      } else {
+        dataView = new DataView(serializedEncryptedBytes);
+      }
       let currentOffset = 0;
       const versionNumber = dataView.getUint32(currentOffset, true);
       currentOffset += bytesInAUint32;
@@ -359,47 +331,44 @@
       }
       return true;
     }
-    
-    
-    
-
 
   })();
 })(window.sequentialReadPasswordManager, window, document);
 
 (function(app, window, document, undefined) {
 
-  app.http = (method, url, headers, content) =>
+  app.http = (method, url, headers, content, responseType) =>
     new Promise((resolve, reject) => {
       headers = headers || {};
       var httpRequest = new XMLHttpRequest();
+      httpRequest.responseType = responseType || "text";
       httpRequest.onloadend = () => {
         //console.log(`httpRequest.onloadend: ${httpRequest.status} ${url}`);
         if (httpRequest.status < 300) {
-          if(httpRequest.responseText.length == 0) {
+          if(httpRequest.getResponseHeader("Content-Length") == "0") {
             resolve();
           } else {
-            // this can happen sometimes with our Application Cache fallback -- treat it as 404
-            if(httpRequest.responseText.indexOf("<!DOCTYPE HTML>") == 0 || httpRequest.responseText.indexOf("<html>") == 0) {
-              reject(false);
-              return;
-            }
-
-            // Does it look like a sjcl ciphertext json blob ?
-            if(httpRequest.responseText.indexOf("\"iv\"") != -1 && httpRequest.responseText.indexOf("\"ks\"") != -1 && httpRequest.responseText.indexOf("\"cipher\"") != -1) {
-              var jsonFailed = false;
+            if(responseType == "arraybuffer") {
+              if(httpRequest.response.byteLength == 0) {
+                resolve();
+                return;
+              }
+              let jsonFailed = false;
+              let responseString;
               try {
-                resolve(JSON.parse(app.cryptoService.decrypt(httpRequest.responseText)));
+                responseString = app.cryptoService.decrypt(httpRequest.response);
+              } catch (err) {
+                window.onerror(`unable to decrypt '${url}': ${err.message} `, null, null, null, err);
+                reject(false);
+                return;
+              }
+              try {
+                resolve(JSON.parse(responseString));
               } catch (err) {
                 jsonFailed  = true;
               }
               if(jsonFailed) {
-                try {
-                  resolve(app.cryptoService.decrypt(httpRequest.responseText));
-                } catch (err) {
-                  window.onerror(`unable to decrypt '${url}': ${err.message} `, null, null, null, err);
-                  reject(false);
-                }
+                resolve(responseString);
               }
             } else {
               resolve(httpRequest.responseText);
@@ -461,7 +430,7 @@
 
     var requestsCurrentlyInFlight = 0;
 
-    var httpButAlwaysResolves = (method, url, headers, content) =>
+    var httpButAlwaysResolves = (method, url, headers, content, responseType) =>
       new Promise((resolve, reject) => {
         requestsCurrentlyInFlight += 1;
         document.getElementById('progress-container').style.display = 'block';
@@ -474,7 +443,7 @@
           resolve(result);
         };
 
-        http(method, url, headers, content)
+        http(method, url, headers, content, responseType)
         .then(
           (result) => resolveAndPopInFlight(result),
           (isTimeout) => resolveAndPopInFlight(new RequestFailure(isTimeout))
@@ -488,14 +457,15 @@
 
     this.get = (id) => {
       return Promise.all([
-        httpButAlwaysResolves('GET', `${storageBaseUrl}/${id}`, {'Accept': 'application/json'}),
-        httpButAlwaysResolves('GET', `${s3InterceptorSymbol}${id}`, {'Accept': 'application/json'})
+        httpButAlwaysResolves('GET', `${storageBaseUrl}/${id}`, {'Accept': 'application/octet-stream'}, null, "arraybuffer"),
+        httpButAlwaysResolves('GET', `${s3InterceptorSymbol}${id}`, {'Accept': 'application/octet-stream'}, null, "arraybuffer")
       ]).then((results) => {
         return new Promise((resolve, reject) => {
-          var localCopyCiphertext = window.localStorage[`${localStorageKeyPrefix}${id}`];
+          const localCopyCiphertext64 = window.localStorage[`${localStorageKeyPrefix}${id}`];
+          const localCopyCiphertextBytes = sjcl.codec.bytes.fromBits(sjcl.codec.base64.toBits(localCopyCiphertext64));
           var localCopy;
           try {
-            localCopy = localCopyCiphertext ? JSON.parse(cryptoService.decrypt(localCopyCiphertext)) : null;
+            localCopy = localCopyCiphertextBytes ? JSON.parse(cryptoService.decrypt(localCopyCiphertextBytes)) : null;
           } catch (err) {
             window.onerror(`unable to decrypt 'window.localStorage["${localStorageKeyPrefix}${id}"]': ${err.message} `, null, null, null, err);
           }
@@ -538,10 +508,11 @@
     };
     this.put = (id, content) => {
       content.lastUpdated = new Date().getTime();
-      window.localStorage[`${localStorageKeyPrefix}${id}`] = cryptoService.encrypt(JSON.stringify(content));
+      const localCopyCiphertextBytes = cryptoService.encrypt(JSON.stringify(content));
+      window.localStorage[`${localStorageKeyPrefix}${id}`] = sjcl.codec.base64.fromBits(sjcl.codec.bytes.toBits(localCopyCiphertextBytes));
       return Promise.all([
-        httpButAlwaysResolves('PUT', `${storageBaseUrl}/${id}`, {'Content-Type': 'application/json'}, content),
-        httpButAlwaysResolves('PUT', `${s3InterceptorSymbol}${id}`, {'Content-Type': 'application/json'}, content)
+        httpButAlwaysResolves('PUT', `${storageBaseUrl}/${id}`, {'Content-Type': 'application/octet-stream'}, content, "arraybuffer"),
+        httpButAlwaysResolves('PUT', `${s3InterceptorSymbol}${id}`, {'Content-Type': 'application/octet-stream'}, content, "arraybuffer")
       ]).then(() => content)
     };
     this.delete = (id) => {
