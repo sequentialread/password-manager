@@ -51,7 +51,7 @@ self.addEventListener('fetch', event => {
           const url = new URL(event.request.url);
           const isServerStorage = url.pathname.startsWith('/storage');
           const isVersion = url.pathname == "/version";
-          const isBackblaze = url.host.includes('backblaze.com');
+          const isBackblaze = url.host.includes('backblazeb2.com');
           const isPut = event.request.method == "PUT";
 
           if(!isServerStorage && !isVersion && !isBackblaze && !isPut) {

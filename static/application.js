@@ -286,13 +286,17 @@
     
     function parseEncryptedBytes(serializedEncryptedBytes) {
       const toReturn = {};
-      //console.log(serializedEncryptedBytes.buffer);
       let dataView;
-      if(serializeEncryptedBytes.) {
+      if(serializedEncryptedBytes instanceof ArrayBuffer) {
         dataView = new DataView(serializedEncryptedBytes);
+      } else if(serializedEncryptedBytes instanceof Uint8Array) {
+        dataView = new DataView(serializedEncryptedBytes.buffer);
+      } else if(serializedEncryptedBytes instanceof Array && serializedEncryptedBytes.every(x => typeof x == "number" && x >= 0 && x <= 255)) { 
+        dataView = new DataView(Uint8Array.from(serializedEncryptedBytes).buffer);
       } else {
-        dataView = new DataView(serializedEncryptedBytes);
+        throw new Error("You must pass an ArrayBuffer or other byte-array like object to parseEncryptedBytes.");
       }
+
       let currentOffset = 0;
       const versionNumber = dataView.getUint32(currentOffset, true);
       currentOffset += bytesInAUint32;
