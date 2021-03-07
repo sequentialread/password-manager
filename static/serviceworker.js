@@ -2,19 +2,31 @@
 const cacheVersion = 'v1';
 
 self.addEventListener('install', event => {
-
   event.waitUntil(clients.get(event.clientId).then(client => {
-
+    // if(client) {
+    //   client.postMessage({ log: `sw installing...` });
+    // }
     return caches.open(cacheVersion).then(cache => {
+      // client.postMessage({ log: `sw opened the cache` });
       return cache.addAll([
-        '/',
-        '/static/application.css',
-        '/static/application.js',
-        '/static/awsClient.js',
-        '/static/scryptWebWorker.js',
-        '/static/vendor/sjcl.js',
-        '/static/vendor/cryptoWordList.js',
-      ]);
+        '/app/',
+        '/app/application.css',
+        '/app/application.js',
+        '/app/awsClient.js',
+        '/app/scryptWebWorker.js',
+        '/app/vendor/sjcl.js',
+        '/app/vendor/cryptoWordList.js',
+      ]).catch(x => {
+        if(console && console.log) {
+          console.log("test", x);
+        }
+        // client.postMessage({ log: `sw installation failed; populating the cache failed` });
+      });
+    }).catch(x => {
+      if(console && console.log) {
+        console.log("test", x);
+      }
+      // client.postMessage({ log: `sw installation failed; opening the cache failed` });
     })
   }));
 });

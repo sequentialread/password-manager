@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -25,6 +26,7 @@ var appPort = "8073"
 var dataPath string
 var indexTemplate *template.Template
 var application Application
+var staticHandler http.Handler
 
 type Application struct {
 	Version            string
@@ -32,6 +34,89 @@ type Application struct {
 	S3BucketRegion     string
 	AWSAccessKeyId     string
 	AWSSecretAccessKey string
+}
+
+func main() {
+	godotenv.Load()
+
+	dataPath = filepath.Join(".", "data")
+	os.MkdirAll(dataPath, os.ModePerm)
+
+	reloadStaticFiles()
+
+	http.HandleFunc("/app/serviceworker.js", func(response http.ResponseWriter, request *http.Request) {
+		file, _ := os.OpenFile("static/serviceworker.js", os.O_RDONLY, 0755)
+		defer file.Close()
+		response.Header().Set("Etag", application.Version)
+		response.Header().Set("Content-Type", "application/javascript")
+		io.Copy(response, file)
+		log.Println("/app/serviceworker.js")
+	})
+
+	http.HandleFunc("/app", serveIndexOrStatic)
+	http.HandleFunc("/app/", serveIndexOrStatic)
+	staticHandler = http.StripPrefix("/app/", http.FileServer(http.Dir("./static/")))
+
+	http.HandleFunc("/version", func(response http.ResponseWriter, request *http.Request) {
+		response.WriteHeader(200)
+		fmt.Fprint(response, application.Version)
+	})
+
+	http.HandleFunc("/storage/", storage)
+
+	http.HandleFunc("/", func(responseWriter http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/" {
+			http.Redirect(responseWriter, request, "/app/", http.StatusMovedPermanently)
+			return
+		}
+		http.Error(responseWriter, "404 not found", http.StatusNotFound)
+	})
+
+	var headless = flag.Bool("headless", false, "headless server mode")
+	var tlsFlag = flag.String("tls", "", "path to tlsFlag cert/key (for example, entering \"test\" will resolve \"./test.key\" and \"./test.pem\"")
+	flag.Parse()
+
+	if headless == nil || *headless == false {
+
+		go func() {
+			for true {
+				reloadStaticFiles()
+				time.Sleep(time.Second * 2)
+			}
+		}()
+
+		go func() {
+			var appUrl = "http://localhost:" + appPort
+			if tlsFlag != nil && *tlsFlag != "" {
+				appUrl = "https://localhost:" + appPort
+			}
+			var serverIsRunning = false
+			var attempts = 0
+			for !serverIsRunning && attempts < 15 {
+				attempts += 1
+				time.Sleep(time.Millisecond * 500)
+				tr := &http.Transport{
+					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				}
+				client := &http.Client{Transport: tr}
+				response, err := client.Get(appUrl)
+
+				if err == nil && response.StatusCode == 200 {
+					serverIsRunning = true
+				}
+			}
+			openUrl(appUrl)
+		}()
+	}
+
+	if tlsFlag != nil && *tlsFlag != "" {
+		err := http.ListenAndServeTLS(":"+appPort, fmt.Sprintf("%s.pem", *tlsFlag), fmt.Sprintf("%s.key", *tlsFlag), nil)
+		panic(err)
+	} else {
+		err := http.ListenAndServe(":"+appPort, nil)
+		panic(err)
+	}
+
 }
 
 func storage(response http.ResponseWriter, request *http.Request) {
@@ -93,22 +178,25 @@ func storage(response http.ResponseWriter, request *http.Request) {
 	}
 }
 
-func indexHtml(response http.ResponseWriter, request *http.Request) {
-	if request.URL.Path != "/" {
-		response.WriteHeader(404)
-		fmt.Fprintf(response, "404 not found: %s", request.URL.Path)
+func serveIndexOrStatic(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.URL.Path == "/app" {
+		http.Redirect(responseWriter, request, "/app/", http.StatusMovedPermanently)
+		return
+	}
+	if request.URL.Path != "/app/" {
+		staticHandler.ServeHTTP(responseWriter, request)
 		return
 	}
 	var buffer bytes.Buffer
 	err := indexTemplate.Execute(&buffer, application)
 	if err != nil {
-		response.WriteHeader(500)
-		fmt.Fprintf(response, "500 %s", err)
+		responseWriter.WriteHeader(500)
+		fmt.Fprintf(responseWriter, "500 %s", err)
 		return
 	}
-	response.Header().Set("Etag", application.Version)
+	responseWriter.Header().Set("Etag", application.Version)
 
-	io.Copy(response, &buffer)
+	io.Copy(responseWriter, &buffer)
 }
 
 func loadTemplate(filename string) *template.Template {
@@ -153,7 +241,7 @@ func reloadStaticFiles() {
 			application.S3BucketRegion,
 		},
 		[]string{
-			"index.html.gotemplate",
+			"static/index.html.gotemplate",
 			"static/application.js",
 			"static/serviceworker.js",
 			"static/awsClient.js",
@@ -163,81 +251,7 @@ func reloadStaticFiles() {
 		},
 	)[:6]
 
-	indexTemplate = loadTemplate("index.html.gotemplate")
-}
-
-func main() {
-	godotenv.Load()
-
-	dataPath = filepath.Join(".", "data")
-	os.MkdirAll(dataPath, os.ModePerm)
-
-	reloadStaticFiles()
-
-	http.HandleFunc("/", indexHtml)
-
-	http.HandleFunc("/serviceworker.js", func(response http.ResponseWriter, request *http.Request) {
-		file, _ := os.OpenFile("static/serviceworker.js", os.O_RDONLY, 0755)
-		defer file.Close()
-		response.Header().Set("Etag", application.Version)
-		response.Header().Set("Content-Type", "application/javascript")
-		io.Copy(response, file)
-	})
-
-	http.HandleFunc("/version", func(response http.ResponseWriter, request *http.Request) {
-		response.WriteHeader(200)
-		fmt.Fprint(response, application.Version)
-	})
-
-	http.HandleFunc("/storage/", storage)
-
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
-
-	var headless = flag.Bool("headless", false, "headless server mode")
-	var tlsFlag = flag.String("tls", "", "path to tlsFlag cert/key (for example, entering \"test\" will resolve \"./test.key\" and \"./test.pem\"")
-	flag.Parse()
-
-	if headless == nil || *headless == false {
-
-		go func() {
-			for true {
-				reloadStaticFiles()
-				time.Sleep(time.Second * 2)
-			}
-		}()
-
-		go func() {
-			var appUrl = "http://localhost:" + appPort
-			if tlsFlag != nil && *tlsFlag != "" {
-				appUrl = "https://localhost:" + appPort
-			}
-			var serverIsRunning = false
-			var attempts = 0
-			for !serverIsRunning && attempts < 15 {
-				attempts += 1
-				time.Sleep(time.Millisecond * 500)
-				tr := &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				}
-				client := &http.Client{Transport: tr}
-				response, err := client.Get(appUrl)
-
-				if err == nil && response.StatusCode == 200 {
-					serverIsRunning = true
-				}
-			}
-			openUrl(appUrl)
-		}()
-	}
-
-	if tlsFlag != nil && *tlsFlag != "" {
-		err := http.ListenAndServeTLS(":"+appPort, fmt.Sprintf("%s.pem", *tlsFlag), fmt.Sprintf("%s.key", *tlsFlag), nil)
-		panic(err)
-	} else {
-		err := http.ListenAndServe(":"+appPort, nil)
-		panic(err)
-	}
-
+	indexTemplate = loadTemplate("static/index.html.gotemplate")
 }
 
 func openUrl(url string) {

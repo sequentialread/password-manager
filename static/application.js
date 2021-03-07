@@ -14,8 +14,9 @@
       return
     }
   
-    navigator.serviceWorker.register('/serviceworker.js', {scope: "/"}).then(
+    navigator.serviceWorker.register('/app/serviceworker.js', {scope: "/app/"}).then(
       (reg) => {
+        console.log("reg object" + JSON.stringify(reg, null, "  "))
         if(reg.installing) {
           console.log('Service worker installing, will reload');
           
@@ -95,7 +96,7 @@
     document.addEventListener('mousemove', mouseOrTouchMoved, false);
     document.body.addEventListener('touchmove', mouseOrTouchMoved, false);
     this.scryptPromises = {};
-    this.scryptWebWorker = new Worker("./static/scryptWebWorker.js");
+    this.scryptWebWorker = new Worker("/app/scryptWebWorker.js");
     this.scrypt = (input, cpuAndMemoryCost, blockSize) => {
       let promise;
       const hexData = sjcl.codec.hex.fromBits(sjcl.codec.utf8String.toBits(input));
@@ -930,8 +931,8 @@
 
     document.getElementById('splash-continue-button').onclick = onContinueClicked;
 
-    // Force a reload if the version changed (gets around issues with Application Cache)
-    http('GET', 'version', {}, null)
+    // Force a reload if the version changed (gets around issues with ServiceWorker)
+    http('GET', '/version', {}, null)
     .then(
       (currentVersion) => {
         var lastVersion = window.localStorage[`${localStorageKeyPrefix}version`];
