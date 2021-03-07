@@ -59,7 +59,7 @@ self.addEventListener('fetch', event => {
         }
         return response;
       } else {
-        return fetch(event.request).then(response => {
+        return fetch(event.request).then(async (response) =>  {
           const url = new URL(event.request.url);
           const isServerStorage = url.pathname.startsWith('/storage');
           const isVersion = url.pathname == "/version";
@@ -72,12 +72,16 @@ self.addEventListener('fetch', event => {
             // and serve second one
             let responseClone = response.clone();
             
-            caches.open(cacheVersion).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
+
             if(client) {
               client.postMessage({ log: `cache miss: ${event.request.method}, ${event.request.url}` });
             }
+
+            return await caches.open(cacheVersion).then((cache) => {
+              return cache.put(event.request, responseClone).then(x => {
+                return response;
+              });
+            });
           } else if(client) {
             client.postMessage({ log: `ignored: ${event.request.method}, ${event.request.url}` });
           }
