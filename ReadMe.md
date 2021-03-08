@@ -16,12 +16,12 @@ OR run it yourself in docker:
 ```
 docker run \
   -p 8073:8073 \
-  -v "/Users/exampleUser/Desktop/encrypted-passwords:/data" \
+  -v "/home/exampleUser/Desktop/encrypted-passwords:/app/data" \
   -e SEQUENTIALREAD_PWM_BACKBLAZE_ACCESS_KEY_ID=EXAMPLE77f599784EXAMPLE \
   -e SEQUENTIALREAD_PWM_BACKBLAZE_SECRET_ACCESS_KEY=EXAMPLEEXAMPLEEXAMPLEEXAMPLEKEY \
   -e SEQUENTIALREAD_PWM_BACKBLAZE_BUCKET_NAME=sequentialread-password-manager \
   -e SEQUENTIALREAD_PWM_BACKBLAZE_BUCKET_REGION=us-west-000 \
-  sequentialread/sequentialread-password-manager:2.0.0
+  sequentialread/sequentialread-password-manager:2.0.6
 ```
 
 See "Hosting it yourself" for more information.
@@ -53,14 +53,16 @@ cd wasm_build
 ./wasm_build.sh
 ```
 
-There is nothing that pulls in dependencies, no bundling step, etc. There is only one place in the app where `XMLHttpRequest` is created, and the request body is encrypted right then and there. Same goes for `localStorage`.
+So, there are only three build steps for the app, the sjcl Makefile, the WASM build script, and the golang build. No front-end build tools or npm packages required.
+
+There is [only one place in the code](https://git.sequentialread.com/forest/sequentialread-password-manager/src/master/static/application.js#L401) where `XMLHttpRequest` is created, and the request payload is encrypted in the same block of code. Same goes for [`localStorage`](https://git.sequentialread.com/forest/sequentialread-password-manager/src/master/static/application.js#L529).
 
 It was designed that way to strengthen the claim that "everything it sends out from the javascript VM is AES encrypted with the key you chose".
 
 In the past I had used the default symmetric encryption standard from the `sjcl` "convenience" package. However, for version 2 of the password manager, I replaced it with my own ["generate a random initialization vector, encrypt, then HMAC" implementation](https://git.sequentialread.com/forest/sequentialread-password-manager/src/b970d6abffdadfc221118d1b46e8bc0fcb4eed89/static/application.js#L230). I had two reasons for doing this: 
 
   1. I wanted to take control of the key derivation step and do it myself with scrypt.
-  1. I wanted to make a symmetric encryption standard/format that was more easily portable between sjcl and other programming languages / standard libraries [like Golang](https://git.sequentialread.com/forest/rootsystem/src/a4034f9cb08ac9d5981365f7d1dbd5e114e1895f/objectStorage/e2eeObjectStorage.go#L121).
+  1. I wanted to make a symmetric encryption format that was more easily portable between sjcl and other programming languages / standard libraries [like Golang](https://git.sequentialread.com/forest/rootsystem/src/a4034f9cb08ac9d5981365f7d1dbd5e114e1895f/objectStorage/e2eeObjectStorage.go#L121).
 
 ## High Avaliability by Design
 
@@ -74,15 +76,15 @@ In the past I had used the default symmetric encryption standard from the `sjcl`
 
  That means if you happen to make conflicting changes, there is no real conflict resolution. The latest one wins.
 
-## Encryption Key User Interface Disclaimer
+## Encryption Key Seed User Interface Disclaimer
 
-You are allowed to use whatever seed you want for your AES key. If you pick a weak seed and get hacked, that is your fault. The application warned you about it. It was even red, bold and underlined!
+You are allowed to use whatever seed you want for your AES key. If you pick a weak easy-to-guess seed and get hacked, that is your fault. The application warned you about it. It was even red, bold and underlined!
 
-The application includes a timestamp + mouse-movement + SHA256 + `crypto.getRandomValues()` based entropy generator to create a secure passphrase, encoded in base 8192 as 4 english words. An example:
+The application includes a timestamp + mouse-movement + SHA256 + `window.crypto.getRandomValues()` based entropy generator to create a secure passphrase with 52 bits of information, encoded in base 8192 as 4 english words. An example:
 
-`motel behave sits parcel`
+`none typed glazed cow`
 
-Assuming the attacker had access to the ciphertext, they would have to guess a 1 in 2^53 Scrypt hash. The scrypt parameters used are: 
+Assuming the brute-force attacker had access to the ciphertext, they would have to guess a 1 in 2^53 scrypt hash. (1 in ~4500000000000000) The scrypt parameters used are: 
 
 ```
 N = 16384  // CPU and Memory cost factor.
@@ -93,9 +95,9 @@ dklen = 32 // output key length in bytes
 
 According to the cost analysis from the [original scrypt paper](http://www.tarsnap.com/scrypt/scrypt.pdf) this puts the monetary cost associated with brute-force cracking one of these keys in the millions of dollars. That paper is quite old now though, so I would adjust it down to hundreds of thousands of dollars to account for the advancement in scrypt ASIC / GPU chip production associated with Cryptocurrency mining. That said, I don't know if existing Litecoin ASICs could be retooled to crack these passwords. I doubt it, because the scrypt parameters I am using will demand a LOT more memory than Litecoin mining will. So probably those ASICs would not be able to complete any of these hashes. 
 
-Also, keep in mind that casual remote attackers probably won't even have access to the ciphertext anyway, since they would have to sweep your browser's localstorage or get it from Backblaze somehow. (They can't list the bucket without gaining access to my Backblaze account). I just put a scary disclaimer on the app since I don't want to be holding people's weakly encrypted password data.
+Also, keep in mind that casual remote attackers probably won't even have access to the ciphertext anyway, since they would have to sweep your browser's localstorage or get it from Backblaze somehow. (They can't list the bucket without gaining access to my Backblaze account, and they can't know ahead of time what the filenames are without knowing your passphrase). I just put a scary disclaimer on the app since I don't want to be holding people's weakly encrypted password data.
 
-If you are extremely paranoid and want to make sure that its physically impossible to brute force your password, just use 8 words words. That will give you over 100 bits of entropy which should be more than enough.
+If you are extremely paranoid and want to make sure that its physically impossible to brute force your password, just use 8 words or something. That will give you over 100 bits of entropy which should be more than enough.
 
 
 ## License
@@ -165,6 +167,8 @@ BUCKET_ID="$(curl -sS -H "Authorization: $AUTHORIZATION_TOKEN" "$API_URL/b2api/v
 curl -X POST -H "Authorization: $AUTHORIZATION_TOKEN" -H "Content-Type: application/json" "$API_URL/b2api/v2/b2_create_key" -d '{"accountId": "'"$ACCOUNT_ID"'", "capabilities": ["listBuckets", "readFiles", "writeFiles"], "keyName": "'"$KEY_NAME"'", "bucketId": "'"$BUCKET_ID"'"}'
 
 ```
+
+(Note that `listBuckets` here means the ability to see which buckets exist, not the ability to list files within a bucket!)
 
 My bucket's S3-compatible-API endpoint (displayed under the bucket in the backblaze web interface) was `s3.us-west-000.backblazeb2.com`.
 

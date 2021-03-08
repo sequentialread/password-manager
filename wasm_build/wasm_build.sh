@@ -34,20 +34,59 @@ fi
 
 cd ../
 
-nodejs_is_installed="$(which node | wc -l)"
-
-if [ "$nodejs_is_installed" == "0" ]; then
-  printf "nodejs and npm are required for the next step. Please install them manually 😇"
-  exit 1
-fi
-
-printf "\n\n"
-
 cp scrypt-wasm/pkg/scrypt_wasm_bg.wasm "../static/vendor/scrypt_wasm_bg.wasm"
 
+printf "\n\n"
 printf "built ../static/vendor/scrypt_wasm_bg.wasm successfully!\n\n"
 
-node wasm_build_webworker.js > "../static/scryptWebWorker.js"
+# --------------------------------------------------------------------------
+# Output the composited webworker JS
+
+# first, include the warning about this file being automatically generated
+
+echo '
+
+// THIS FILE IS GENERATED AUTOMATICALLY
+// Dont edit this file by hand. 
+// Either edit scryptWebWorkerStub.js or edit the build located in the wasm_build folder.
+
+' > "../static/scryptWebWorker.js"
+
+# add the actual webworker logic at the top, while filtering out comments
+
+cat "../static/scryptWebWorkerStub.js" | grep -v -E '^//' >>  "../static/scryptWebWorker.js"
+
+
+# Now its time to load the wasm module. download it and tell WebAssembly to load it
+# https://www.sitepen.com/blog/using-webassembly-with-web-workers
+echo '
+
+// Everything below this line is created by the build scripts in the wasm_build folder. 
+
+
+// Polyfill instantiateStreaming for browsers missing it
+if (!WebAssembly.instantiateStreaming) {
+  WebAssembly.instantiateStreaming = async (resp, importObject) => {
+    const source = await (await resp).arrayBuffer();
+    return await WebAssembly.instantiate(source, importObject);
+  };
+}
+
+scryptPromise = WebAssembly.instantiateStreaming(fetch("/static/vendor/scrypt_wasm_bg.wasm"), {}).then(instantiatedModule => {
+  const wasm = instantiatedModule.instance.exports;
+
+' >>  "../static/scryptWebWorker.js"
+
+# Output the WASM wrapper JS code that came from the Rust WASM compiler, 
+# slightly modified to use global namespace instead of es6 modules
+cat scrypt-wasm/pkg/scrypt_wasm_bg.js \
+ | grep -v -E '^import ' | sed 's/export function scrypt/scrypt = function/' \
+ | sed 's/^/  /g'  >>  "../static/scryptWebWorker.js"
+
+# finish off by closing scryptPromise// finish off by closing scryptPromise
+echo '
+});
+' >>  "../static/scryptWebWorker.js"
 
 printf "built ../static/scryptWebWorker.js successfully!\n\n"
 

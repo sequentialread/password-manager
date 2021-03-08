@@ -1,7 +1,7 @@
 
 
 // THIS FILE IS GENERATED AUTOMATICALLY
-// Don't edit this file by hand. 
+// Dont edit this file by hand. 
 // Either edit scryptWebWorkerStub.js or edit the build located in the wasm_build folder.
 
 
@@ -71,10 +71,7 @@ onmessage = function(e) {
 }
 
 
-
 // Everything below this line is created by the build scripts in the wasm_build folder. 
-
-
 
 
 // Polyfill instantiateStreaming for browsers missing it
@@ -85,8 +82,9 @@ if (!WebAssembly.instantiateStreaming) {
   };
 }
 
-scryptPromise = WebAssembly.instantiateStreaming(fetch('/static/vendor/scrypt_wasm_bg.wasm'), {}).then(instantiatedModule => {
+scryptPromise = WebAssembly.instantiateStreaming(fetch("/static/vendor/scrypt_wasm_bg.wasm"), {}).then(instantiatedModule => {
   const wasm = instantiatedModule.instance.exports;
+
 
   
   let WASM_VECTOR_LEN = 0;
@@ -197,5 +195,6 @@ scryptPromise = WebAssembly.instantiateStreaming(fetch('/static/vendor/scrypt_wa
       }
   }
   
-  
+
 });
+
