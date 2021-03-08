@@ -11,7 +11,7 @@ self.addEventListener('install', event => {
         '/error',
         '/static/application.css',
         '/static/application.js',
-        '/static/awsClient.js',
+        '/static/s3Client.js',
         '/static/scryptWebWorker.js',
         '/static/vendor/sjcl.js',
         '/static/vendor/cryptoWordList.js',

@@ -5,7 +5,7 @@
 
   window.sequentialReadPasswordManager = window.sequentialReadPasswordManager || {};
   window.sequentialReadPasswordManager.localStorageKeyPrefix = "sequentialread-pwm:";
-  window.sequentialReadPasswordManager.s3InterceptorSymbol =  "/awsS3/";
+  window.sequentialReadPasswordManager.s3InterceptorSymbol =  "/backblazeB2/";
   window.sequentialReadPasswordManager.storageBaseUrl = "/storage";
 
   window.addEventListener('load', () => {
@@ -408,7 +408,7 @@
       // AWS S3 request interceptor
       if(url.startsWith(app.s3InterceptorSymbol)) {
         var path = url.replace(app.s3InterceptorSymbol, '');
-        var s3Request = app.awsClient.s3Request(method, app.S3BucketRegion, app.S3BucketName, path, content);
+        var s3Request = app.s3Client.s3Request(method, app.BackblazeBucketRegion, app.BackblazeBucketName, path, content);
         headers = s3Request.headers;
         url = s3Request.endpointUri;
       }
@@ -446,7 +446,7 @@
           requestsCurrentlyInFlight += 1;
           document.getElementById('progress-container').style.display = 'block';
         }
-        
+
         var resolveAndPopInFlight = (result) => {
           if(!backgroundMode) {
             requestsCurrentlyInFlight -= 1;

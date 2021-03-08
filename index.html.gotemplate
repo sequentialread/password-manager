@@ -7,10 +7,10 @@
   <script>
     // global namespace where we will be putting everything
     window.sequentialReadPasswordManager = {
-      AWSAccessKeyId: "{{.AWSAccessKeyId}}",
-      AWSSecretAccessKey: "{{.AWSSecretAccessKey}}",
-      S3BucketName: "{{.S3BucketName}}",
-      S3BucketRegion: "{{.S3BucketRegion}}"
+      BackblazeAccessKeyId: "{{.BackblazeAccessKeyId}}",
+      BackblazeSecretAccessKey: "{{.BackblazeSecretAccessKey}}",
+      BackblazeBucketName: "{{.BackblazeBucketName}}",
+      BackblazeBucketRegion: "{{.BackblazeBucketRegion}}"
     };
     // a fake implementation of AMD just so I can use use sjcl.js (Stanford JavaScript Crypto Library) without any modifications
     window.define = function(dependencies, factory) {
@@ -19,7 +19,7 @@
   </script>
   <script src="static/vendor/sjcl.js"></script> 
   <script src="static/vendor/cryptoWordList.js"></script>
-  <script src="static/awsClient.js"></script>
+  <script src="static/s3Client.js"></script>
   <link rel="stylesheet" type="text/css" href="static/application.css">
 </head>
 <body>
@@ -48,15 +48,14 @@
     </button>
     <p class="instructions">
       This is an encryption key seed, not a password. Save it somewhere <u>secure</u> so you don't lose it. <u>No one can recover it for you</u>.<br/>
-      Unless you trust me and trust AWS, this is the only thing protecting the data you enter here from being publicly avaliable.<br/>
-      If you are super paranoid, it needs to be so long that even a supercomputer can't guess it. <br/>
-	  (about 128 bits of entropy, the generate button gives you that)<br/>
+      This is the only thing protecting the data you enter here from being publicly avaliable.<br/>
+      It needs to be long enough that even a supercomputer can't guess it. <br/>
+	    (The generate button will give you ~52 bits of entropy. 4 random words from a list of 8192 words, so, 1 in (2^13)^4. It would take <a href="http://www.tarsnap.com/scrypt/scrypt.pdf">at least a few hundred thousand dollars worth of compute power to crack that</a>. If you want to make physically impossible to crack, you can go for 6 words.)<br/>
 	  <br/>
-	  If you trust me and you trust AWS, or you don't think anyone will be dusting off the ol' GPU farm to crack your passwords, then something like four words is probably fine.<br/>
       <br/>
       SEQUENTIAL READ PASSWORD MANAGER IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. <br/>
       For more information see the <a href="https://github.com/sequentialread/password-manager/blob/master/LICENSE">LICENSE file</a> on GitHub.<br/>
-      If you want to rely on this application in the long term I advise you to <a href="https://hub.docker.com/r/sequentialread/sequentialread-password-manager/"> host it yourself</a> with your own AWS account.
+      If you want to rely on this application in the long term I advise you to <a href="https://hub.docker.com/r/sequentialread/sequentialread-password-manager/"> host it yourself</a> with your own Backblaze account.
     </p>
   </div>
   <div class="main content" id="file-list-content" style="display:none;">

@@ -28,10 +28,10 @@ var application Application
 
 type Application struct {
 	Version            string
-	S3BucketName       string
-	S3BucketRegion     string
-	AWSAccessKeyId     string
-	AWSSecretAccessKey string
+	BackblazeBucketName       string
+	BackblazeBucketRegion     string
+	BackblazeAccessKeyId     string
+	BackblazeSecretAccessKey string
 }
 
 func storage(response http.ResponseWriter, request *http.Request) {
@@ -140,23 +140,23 @@ func hashFiles(seeds []string, filenames []string) string {
 
 func reloadStaticFiles() {
 
-	application.AWSAccessKeyId = os.Getenv("SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID")
-	application.AWSSecretAccessKey = os.Getenv("SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY")
-	application.S3BucketName = os.Getenv("SEQUENTIAL_READ_PWM_S3_BUCKET_NAME")
-	application.S3BucketRegion = os.Getenv("SEQUENTIAL_READ_PWM_S3_BUCKET_REGION")
+	application.BackblazeAccessKeyId = os.Getenv("SEQUENTIALREAD_PWM_BACKBLAZE_ACCESS_KEY_ID")
+	application.BackblazeSecretAccessKey = os.Getenv("SEQUENTIALREAD_PWM_BACKBLAZE_SECRET_ACCESS_KEY")
+	application.BackblazeBucketName = os.Getenv("SEQUENTIALREAD_PWM_BACKBLAZE_BUCKET_NAME")
+	application.BackblazeBucketRegion = os.Getenv("SEQUENTIALREAD_PWM_BACKBLAZE_BUCKET_REGION")
 
 	application.Version = hashFiles(
 		[]string{
-			application.AWSAccessKeyId,
-			application.AWSSecretAccessKey,
-			application.S3BucketName,
-			application.S3BucketRegion,
+			application.BackblazeAccessKeyId,
+			application.BackblazeSecretAccessKey,
+			application.BackblazeBucketName,
+			application.BackblazeBucketRegion,
 		},
 		[]string{
 			"index.html.gotemplate",
 			"static/application.js",
 			"static/serviceworker.js",
-			"static/awsClient.js",
+			"static/s3Client.js",
 			"static/application.css",
 			"static/vendor/sjcl.js",
 			"static/vendor/cryptoWordList.js",

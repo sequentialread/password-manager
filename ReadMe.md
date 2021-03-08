@@ -17,10 +17,10 @@ OR run it yourself in docker:
 docker run \
   -p 8073:8073 \
   -v "/Users/exampleUser/Desktop/encrypted-passwords:/data" \
-  -e SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID=EXAMPLE77f599784EXAMPLE \
-  -e SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY=EXAMPLEEXAMPLEEXAMPLEEXAMPLEKEY \
-  -e SEQUENTIAL_READ_PWM_S3_BUCKET_NAME=sequentialread-password-manager \
-  -e SEQUENTIAL_READ_PWM_S3_BUCKET_REGION=us-west-000 \
+  -e SEQUENTIALREAD_PWM_BACKBLAZE_ACCESS_KEY_ID=EXAMPLE77f599784EXAMPLE \
+  -e SEQUENTIALREAD_PWM_BACKBLAZE_SECRET_ACCESS_KEY=EXAMPLEEXAMPLEEXAMPLEEXAMPLEKEY \
+  -e SEQUENTIALREAD_PWM_BACKBLAZE_BUCKET_NAME=sequentialread-password-manager \
+  -e SEQUENTIALREAD_PWM_BACKBLAZE_BUCKET_REGION=us-west-000 \
   sequentialread/sequentialread-password-manager:2.0.0
 ```
 
@@ -28,7 +28,12 @@ See "Hosting it yourself" for more information.
 
 ## Security
 
-First and foremost, the application is easy to audit since it has only one dependency: sjcl.js, AKA the Stanford JavaScript Crypto Library.
+First and foremost, the application is easy to audit since it has minimal dependencies: 
+
+ - sjcl.js, AKA the Stanford JavaScript Crypto Library
+ - [MyEtherWallet/scrypt-wasm](https://github.com/MyEtherWallet/scrypt-wasm)
+   - This thing simply compiles the [scrypt hash function from the Rust standard library](https://docs.rs/rust-crypto/0.2.36/crypto/scrypt/index.html) into a Web Assembly binary.
+ - [qntm/base32768](https://github.com/qntm/base32768), a boutique binary encoding which is used to package the Scrypt WASM binary into a [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers).
 
 You can re-produce the sjcl.js I am using like so: 
 
@@ -59,17 +64,25 @@ It was designed that way to strengthen the claim that "everything it sends out f
 
 You are allowed to use whatever seed you want for your AES key. If you pick a weak seed and get hacked, that is your fault. The application warned you about it. It was even red, bold and underlined!
 
-The application includes a timestamp + mouse-movement + SHA256 based entropy generator to create a secure ~128 bit key, encoded in base 10,000. It will appear as a collection of a few english words/phrases. An example:
+The application includes a timestamp + mouse-movement + SHA256 + `crypto.getRandomValues()` based entropy generator to create a secure passphrase, encoded in base 8192 as 4 english words. An example:
 
-`bedrooms confirmation decor generic wondering temperatures bm retreat beer`
+`motel behave sits parcel`
 
-Assuming the attacker had access to the ciphertext and could use [top-of-the-line hardware](https://en.bitcoin.it/wiki/Mining_hardware_comparison) (A Bitmain Antminer S9 in this case), how long would it take to guess every possible combination of words? [A very, VERY long time](https://www.wolframalpha.com/input/?i=(10000%5E9)%2F(1.4e%2B13)+seconds+in+years)
+Assuming the attacker had access to the ciphertext, they would have to guess a 1 in 2^53 Scrypt hash. The scrypt parameters used are: 
 
-For comparison, under the same scenario, a key with only 4 words would be cracked within **10 Minutes**.
+```
+N = 16384  // CPU and Memory cost factor.
+r = 32     // BlockMix block size, increases memory requirement linearly.
+p = 1      // parallelism factor
+dklen = 32 // output key length in bytes
+```
 
-Does that mean a key with 4 words is not secure enough? It might depend on the situation.
+According to the cost analysis from the [original scrypt paper](http://www.tarsnap.com/scrypt/scrypt.pdf) this puts the monetary cost associated with brute-force cracking one of these keys in the millions of dollars. That paper is quite old now though, so I would adjust it down to hundreds of thousands of dollars to account for the advancement in scrypt ASIC / GPU chip production associated with Cryptocurrency mining. That said, I don't know if existing Litecoin ASICs could be retooled to crack these passwords. I doubt it, because the scrypt parameters I am using will demand a LOT more memory than Litecoin mining will. So probably those ASICs would not be able to complete any of these hashes. 
 
-Casual remote attackers probably won't have access to the ciphertext since they would have to look at your localstorage or guess a gazzillion things over HTTP. I just put a scary disclaimer on the app since I don't want to be holding people's weakly encrypted data.
+Also, keep in mind that casual remote attackers probably won't even have access to the ciphertext anyway, since they would have to sweep your browser's localstorage or get it from Backblaze somehow. (They can't list the bucket without gaining access to my Backblaze account). I just put a scary disclaimer on the app since I don't want to be holding people's weakly encrypted password data.
+
+If you are extremely paranoid and want to make sure that its physically impossible to brute force your password, just use 8 words words. That will give you over 100 bits of entropy which should be more than enough.
+
 
 ## License
 
@@ -144,8 +157,8 @@ My bucket's S3-compatible-API endpoint (displayed under the bucket in the backbl
 When setting the environment variables, I set them like this: 
 
 ```
-SEQUENTIAL_READ_PWM_S3_BUCKET_NAME=sequentialread-password-manager
-SEQUENTIAL_READ_PWM_S3_BUCKET_REGION=us-west-000
-SEQUENTIAL_READ_PWM_AWS_ACCESS_KEY_ID=0003ea77f5997840000000015
-SEQUENTIAL_READ_PWM_AWS_SECRET_ACCESS_KEY=EXAMPLEEXAMPLEEXAMPLEEXAMPLE
+SEQUENTIALREAD_PWM_BACKBLAZE_BUCKET_NAME=sequentialread-password-manager
+SEQUENTIALREAD_PWM_BACKBLAZE_BUCKET_REGION=us-west-000
+SEQUENTIALREAD_PWM_BACKBLAZE_ACCESS_KEY_ID=0003ea77f5997840000000015
+SEQUENTIALREAD_PWM_BACKBLAZE_SECRET_ACCESS_KEY=EXAMPLEEXAMPLEEXAMPLEEXAMPLE
 ```
