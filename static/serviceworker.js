@@ -13,6 +13,7 @@ self.addEventListener('install', event => {
         '/static/application.js',
         '/static/s3Client.js',
         '/static/scryptWebWorker.js',
+        '/static/vendor/scrypt_wasm_bg.wasm',
         '/static/vendor/sjcl.js',
         '/static/vendor/cryptoWordList.js',
       ]);

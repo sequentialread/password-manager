@@ -1,15 +1,11 @@
-
-const base32768 = require('base32768');
 const fs = require('fs');
- 
-const base32768WASM = base32768.encode(fs.readFileSync("scrypt-wasm/pkg/scrypt_wasm_bg.wasm"));
 
 const wasmWrappperJS = fs.readFileSync("scrypt-wasm/pkg/scrypt_wasm_bg.js", { encoding: "utf8" });
 let lines = wasmWrappperJS.split("\n");
 
 // filter out the first line "import * as wasm from './scrypt_wasm_bg.wasm';"
 // because we are using global namespace, not es6 modules
-lines = lines.filter(line => !line.includes("scrypt_wasm_bg.wasm"))
+lines = lines.filter(line => !(line.includes("import") && line.includes("scrypt_wasm_bg.wasm")))
 
 // replace export with global namespace for the same reason.
 lines = lines.map(line => {
@@ -42,17 +38,19 @@ console.log(`
 
 `)
 
-// Now its time to load the wasm module. 
-// first, load the base32768 module into a global variable called "base32768"
-console.log(fs.readFileSync("node_modules/base32768/dist/iife/base32768.js", { encoding: "utf8" }))
-
-// now, decode the base32768 string into an ArrayBuffer and tell WebAssembly to load it
+// Now its time to load the wasm module. download it and tell WebAssembly to load it
+// https://www.sitepen.com/blog/using-webassembly-with-web-workers
 console.log(`
-const base32768WASM = "${base32768WASM}";
 
-const wasmBinary = base32768.decode(base32768WASM);
+// Polyfill instantiateStreaming for browsers missing it
+if (!WebAssembly.instantiateStreaming) {
+  WebAssembly.instantiateStreaming = async (resp, importObject) => {
+    const source = await (await resp).arrayBuffer();
+    return await WebAssembly.instantiate(source, importObject);
+  };
+}
 
-scryptPromise = WebAssembly.instantiate(wasmBinary, {}).then(instantiatedModule => {
+scryptPromise = WebAssembly.instantiateStreaming(fetch('/static/vendor/scrypt_wasm_bg.wasm'), {}).then(instantiatedModule => {
   const wasm = instantiatedModule.instance.exports;
 `);
 

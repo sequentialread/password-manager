@@ -27,9 +27,9 @@ var indexTemplate *template.Template
 var application Application
 
 type Application struct {
-	Version            string
-	BackblazeBucketName       string
-	BackblazeBucketRegion     string
+	Version                  string
+	BackblazeBucketName      string
+	BackblazeBucketRegion    string
 	BackblazeAccessKeyId     string
 	BackblazeSecretAccessKey string
 }
@@ -154,10 +154,12 @@ func reloadStaticFiles() {
 		},
 		[]string{
 			"index.html.gotemplate",
+			"static/application.css",
 			"static/application.js",
 			"static/serviceworker.js",
 			"static/s3Client.js",
-			"static/application.css",
+			"static/scryptWebWorker.js",
+			"static/vendor/scrypt_wasm_bg.wasm",
 			"static/vendor/sjcl.js",
 			"static/vendor/cryptoWordList.js",
 		},

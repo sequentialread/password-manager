@@ -35,20 +35,20 @@ fi
 cd ../
 
 nodejs_is_installed="$(which node | wc -l)"
-npm_is_installed="$(which npm | wc -l)"
 
-if [ "$nodejs_is_installed" == "0" ] || [ "$npm_is_installed" == "0"  ]; then
+if [ "$nodejs_is_installed" == "0" ]; then
   printf "nodejs and npm are required for the next step. Please install them manually 😇"
   exit 1
 fi
 
-if [ ! -d node_modules ]; then
-  printf "running npm install \n"
-  npm install
-fi
+printf "\n\n"
+
+cp scrypt-wasm/pkg/scrypt_wasm_bg.wasm "../static/vendor/scrypt_wasm_bg.wasm"
+
+printf "built ../static/vendor/scrypt_wasm_bg.wasm successfully!\n\n"
 
 node wasm_build_webworker.js > "../static/scryptWebWorker.js"
 
-printf "\n\nbuilt ../static/scryptWebWorker.js successfully!\n\n"
+printf "built ../static/scryptWebWorker.js successfully!\n\n"
 
 
