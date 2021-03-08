@@ -67,8 +67,7 @@ u {
   background: #9359fa;
   border-bottom: 1px solid #452775;
   height: 20px;
-  padding:12px;
-  padding-top:6px;
+  padding: 10px;
 }
 .header h3 {
   color: white;
@@ -161,21 +160,30 @@ u {
   border-top: 1px solid #eeeeee;
   padding: 10px;
 }
-.saved-status-indicator {
+.saved-status-indicator,
+.synced-status-indicator {
   border-radius: 3px;
-
   padding: 5px;
   color:white;
   font-weight: bold;
   float:right;
 }
 
+.synced-status-indicator {
+  display: inline-block;
+  float: none;
+  margin-top: 10px;
+}
+
+.synced-status-indicator.saved,
 .saved-status-indicator.saved {
     background: #00e540;
 }
+.synced-status-indicator.saving,
 .saved-status-indicator.saving {
     background: orange;
 }
+.synced-status-indicator.error,
 .saved-status-indicator.error {
     background: red;
 }

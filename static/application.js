@@ -176,7 +176,7 @@
           if(distanceOffsetX >= pixelDistanceRequiredForEntropy
               && distanceOffsetY >= pixelDistanceRequiredForEntropy
               && hashCount >= hashCountRequiredForEntropy) {
-            console.log(Math.abs(entropy) % app.cryptoWordList.length);
+            //console.log(Math.abs(entropy) % app.cryptoWordList.length);
             passphraseArray.push(app.cryptoWordList[Math.abs(entropy) % app.cryptoWordList.length]);
             distanceOffsetX = 0;
             distanceOffsetY = 0;
@@ -466,7 +466,10 @@
       ]).then((results) => {
         return new Promise((resolve, reject) => {
           const localCopyCiphertext64 = window.localStorage[`${localStorageKeyPrefix}${id}`];
-          const localCopyCiphertextBytes = sjcl.codec.bytes.fromBits(sjcl.codec.base64.toBits(localCopyCiphertext64));
+          let localCopyCiphertextBytes;
+          if(localCopyCiphertext64) {
+            localCopyCiphertextBytes = sjcl.codec.bytes.fromBits(sjcl.codec.base64.toBits(localCopyCiphertext64));
+          }
           var localCopy;
           try {
             localCopy = localCopyCiphertextBytes ? JSON.parse(cryptoService.decrypt(localCopyCiphertextBytes)) : null;
@@ -749,6 +752,7 @@
           };
           document.getElementById('new-file-name').onkeyup = updateDisabled;
           document.getElementById('new-file-name').onchange = updateDisabled;
+          document.getElementById('new-file-name').focus();
         },
         [{
           innerHTML: "Cancel",
@@ -790,6 +794,47 @@
       );
     };
 
+    this.toPopulate = [];
+    this.currentlyInFlight = 0;
+    this.populateCache = (filenames) => {
+      if(filenames.length) {
+        const totalToPopulate = filenames.length;
+        this.currentlyInFlight = 0;
+        document.getElementById("synced-status-indicator").className = "saved-status-indicator saving";
+
+        this.toPopulate = filenames;
+        let pollForNextCachePopulation;
+        pollForNextCachePopulation = () => {
+          if(this.currentlyInFlight < 5) {
+            const alreadyDoneCount = totalToPopulate-this.toPopulate.length;
+            document.getElementById("synced-status-indicator").textContent = `Syncing [${alreadyDoneCount}/${totalToPopulate}]`;
+            this.currentlyInFlight ++;
+            const id = this.toPopulate.pop();
+            if(id) {
+              storageService.get(id).then(
+                () => {
+                  this.currentlyInFlight --;
+                }, 
+                err => {
+                  this.currentlyInFlight --;
+                  console.log(`could not cache file "${id}"`, err);
+                  this.toPopulate.unshift(id);
+                }
+              );
+            }
+          }
+          if(this.toPopulate.length) {
+            setTimeout(pollForNextCachePopulation, 100);
+          } else {
+            document.getElementById("synced-status-indicator").textContent = "Synced";
+            document.getElementById("synced-status-indicator").className = "saved-status-indicator saved";
+          }
+        };
+
+        pollForNextCachePopulation();
+      }
+    };
+
     this.load = () => {
       storageService.get(cryptoService.getKeyId())
       .then(
@@ -798,18 +843,10 @@
           // this way if the user tries to open a file that they have never opened before
           // when they are offline, it should work.
 
-          // console.log(fileListDocument.files
-          //   .filter(x => !storageService.isStoredLocally(x.id)).map(x => x.name))
-
-          // console.log(fileListDocument.files
-          //   .filter(x => !storageService.isStoredLocally(x.id)).map(x => x.id))
-
-          fileListDocument.files
-            .filter(x => !storageService.isStoredLocally(x.id))
-            .map(file => storageService.get(file.id).then(
-              () => {}, 
-              err => console.log(`could not cache file "${file.name}"`, err)
-            ));
+          const nonCachedIds = fileListDocument.files.filter(x => !storageService.isStoredLocally(x.id)).map(x => x.id);
+          if(this.toPopulate.length == 0 && nonCachedIds.length) {
+            this.populateCache(nonCachedIds);
+          }     
 
           return renderFileList(fileListDocument);
         },
@@ -850,7 +887,7 @@
       this.fileListDocument = fileListDocument;
       var fileListElement = document.getElementById('file-list');
       if(this.fileListDocument.files.length == 0) {
-        fileListElement.innerHTML = 'There are currently no files.';
+        fileListElement.innerHTML = '<div style="margin-top:20px">There are currently no files.</div>';
       } else {
         fileListElement.innerHTML = '';
         var fileListUl = document.createElement('ul');
@@ -909,16 +946,21 @@
     var onContinueClicked = () => {
       document.getElementById('progress-container').style.display = 'block';
 
-      cryptoService.setSecret(document.getElementById('encryption-secret').value).then(() => {
+      if(document.getElementById('encryption-secret').value) {
+        cryptoService.setSecret(document.getElementById('encryption-secret').value).then(() => {
 
-        document.getElementById('progress-container').style.display = 'none';
-
-        document.getElementById('logout-link-container').style.display = "inline";
-        document.getElementById('encryption-secret').value = '';
-        document.getElementById('encryption-secret').type = 'password';
-        navController.navigate('file-list-content');
-        fileListController.load();
-      });
+          document.getElementById('progress-container').style.display = 'none';
+  
+          document.getElementById('logout-link-container').style.display = "inline";
+          document.getElementById('encryption-secret').value = '';
+          document.getElementById('encryption-secret').type = 'password';
+          navController.navigate('file-list-content');
+          fileListController.load();
+        });
+      } else {
+        throw new Error("you must enter a passphrase");
+      }
+      
     };
 
     var KEYCODE_ENTER = 13;

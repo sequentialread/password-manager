@@ -191,6 +191,11 @@ func main() {
 
 	http.HandleFunc("/storage/", storage)
 
+	http.HandleFunc("/error", func(response http.ResponseWriter, request *http.Request) {
+		response.WriteHeader(200)
+		fmt.Fprint(response, "serviceworker request failed")
+	})
+
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 
 	var headless = flag.Bool("headless", false, "headless server mode")

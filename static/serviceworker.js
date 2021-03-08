@@ -8,6 +8,7 @@ self.addEventListener('install', event => {
     return caches.open(cacheVersion).then(cache => {
       return cache.addAll([
         '/',
+        '/error',
         '/static/application.css',
         '/static/application.js',
         '/static/awsClient.js',
@@ -75,7 +76,7 @@ self.addEventListener('fetch', event => {
           if(client) {
             client.postMessage({ log: `fetch failed in serviceworker! ${event.request.method}, ${event.request.url}: ${e} ` });
           }
-          return null;
+          return caches.match('/error');
         });
       }
     });

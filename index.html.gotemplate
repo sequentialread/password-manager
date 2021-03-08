@@ -62,6 +62,7 @@
   <div class="main content" id="file-list-content" style="display:none;">
     <h3>Files</h3>
     <div style="height:40px; width:100%;">
+      <div class="synced-status-indicator saved" id="synced-status-indicator">Synced</div>
       <button id="new-file-button" style="float:right;">
         New File...
       </button>
