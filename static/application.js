@@ -129,10 +129,10 @@
 
     this.encrypt = (plaintextString) => {
       const plaintextBits =  sjcl.codec.utf8String.toBits(plaintextString);
-      return encryptBits(plaintextBits, currentUserSecret, currentUserSecretId);
+      return encryptBits(plaintextBits, currentUserSecret);
     };
     this.decrypt = (cyphertextBytes) => {
-      const plaintextBits = decryptToBits(cyphertextBytes, currentUserSecret, currentUserSecretId);
+      const plaintextBits = decryptToBits(cyphertextBytes, currentUserSecret);
       return sjcl.codec.utf8String.fromBits(plaintextBits);
     };
 
