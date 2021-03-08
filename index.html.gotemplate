@@ -24,15 +24,25 @@
 </head>
 <body>
   <div class="header">
-    <h3>Sequential Read Password Manager</h3>
+    <h3>Sequential Read Password Manager <span style="font-size: 0.65em; font-weight: normal;">v2.0.6</span></h3>
     <div style="float:right; padding-right:20px;">
-      <a class="source-link-responsive" href="https://git.sequentialread.com/forest/sequentialread-password-manager">source code and documentation</a>
-      <span id="logout-link-container" style="display:none;">
-        <span class="source-link-responsive">|</span> <a href="#" id="logout-link">log out</a>
+      <button class="hamburger-button"></button>
+      <a class="nav-link-responsive" href="https://git.sequentialread.com/forest/sequentialread-password-manager">source code and documentation</a>
+      <span class="nav-link-responsive">
+        <span class="logout-link-container">
+          | <a href="#" class="logout-link">log out</a>
+        </span>
       </span>
     </div>
   </div>
-  <div class="header-shadow"></div>
+  <div class="header-shadow">
+    <div class="hamburger-menu">
+      <ul>
+        <li><a href="https://git.sequentialread.com/forest/sequentialread-password-manager">➤ source code and documentation</a></li>
+        <li class="logout-link-container"><a href="#" class="logout-link">➤ log out</a></li>
+      </ul>
+    </div>
+  </div>
   <div class="splash content" id="splash-content">
     <h3>Enter/Generate your Secret Encryption Key</h3>
     <div class="progress-bar-holder" id="progress-bar-holder" style="display: none;">
@@ -50,8 +60,10 @@
       This is an encryption key seed, not a password. Save it somewhere <u>secure</u> so you don't lose it. <u>No one can recover it for you</u>.<br/>
       This is the only thing protecting the data you enter here from being publicly avaliable.<br/>
       It needs to be long enough that even a supercomputer can't guess it. <br/>
-	    (The generate button will give you ~52 bits of entropy. 4 random words from a list of 8192 words, so, 1 in (2^13)^4. It would take <a href="http://www.tarsnap.com/scrypt/scrypt.pdf">at least a few hundred thousand dollars worth of compute power to crack that</a>. If you want to make physically impossible to crack, you can go for 6 words.)<br/>
-	  <br/>
+      <br/>
+      The generate button will give you ~52 <a href="https://xkcd.com/936/">bits of entropy</a>. 
+      4 random words from a list of 8192 words, so, 1 in 4500000000000000. It would probably take <a href="https://git.sequentialread.com/forest/sequentialread-password-manager#encryption-key-seed-user-interface-disclaimer">at least a few hundred thousand dollars worth of computing effort to crack that</a>. 
+      If you want to make it physically impossible to crack, you can go for something like 8 words.    <br/>
       <br/>
       SEQUENTIAL READ PASSWORD MANAGER IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. <br/>
       For more information see the <a href="https://github.com/sequentialread/password-manager/blob/master/LICENSE">LICENSE file</a> on GitHub.<br/>

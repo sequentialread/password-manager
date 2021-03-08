@@ -663,7 +663,8 @@
 (function(app, window, document, undefined){
   app.navController = new (function NavController() {
 
-    document.getElementById('logout-link').onclick = () => window.location = window.location.origin;
+    const logoutLinks = Array.from(document.querySelectorAll('.logout-link'));
+    logoutLinks.forEach(x => x.onclick = () => window.location = window.location.origin);
 
     var routes = [
       'splash-content',
@@ -955,6 +956,12 @@
       }, 100);
     };
 
+    document.querySelector(".hamburger-button").onclick = () => {
+      const ul = document.querySelector(".hamburger-menu ul");
+      const fn = Array.from(ul.classList).includes("open") ? "remove" : "add";
+      ul.classList[fn]("open");
+    };
+
     var onContinueClicked = () => {
       document.getElementById('progress-container').style.display = 'block';
 
@@ -963,7 +970,14 @@
 
           document.getElementById('progress-container').style.display = 'none';
   
-          document.getElementById('logout-link-container').style.display = "inline";
+          const logoutLinkContainers = Array.from(document.querySelectorAll('.logout-link-container'));
+          logoutLinkContainers.forEach(x => {
+            if(x.tagName.toLowerCase() == "span") {
+              x.style.display = "inline";
+            } else if(x.tagName.toLowerCase() == "li"){
+              x.style.display = "list-item";
+            }
+          });
           document.getElementById('encryption-secret').value = '';
           document.getElementById('encryption-secret').type = 'password';
           navController.navigate('file-list-content');
