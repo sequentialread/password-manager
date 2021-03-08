@@ -214,7 +214,7 @@
       hmac.update(sjcl.codec.bytes.toBits(initializationVectorAndCiphertext))
       const messageAuthenticationCode = sjcl.codec.bytes.fromBits(hmac.digest());
     
-      if(!uint8ArrayEquals(messageAuthenticationCode, encrypted.messageAuthenticationCode)) {
+      if(!this.uint8ArrayEquals(messageAuthenticationCode, encrypted.messageAuthenticationCode)) {
         const wrongPassphraseError = new Error("WrongPassphraseError: MessageAuthenticationCode does not match");
         wrongPassphraseError.wrongPassphrase = true;
         throw wrongPassphraseError;
@@ -326,7 +326,7 @@
       return toReturn;
     }
     
-    function uint8ArrayEquals(a, b) {
+    this.uint8ArrayEquals = (a, b) => {
       if (a.length != b.length) return false;
       for (var i = 0 ; i != a.length ; i++) {
         if (a[i] != b[i]) {
@@ -341,6 +341,8 @@
 
 (function(app, window, document, undefined) {
 
+  const requestFailedBytes = app.sjcl.codec.bytes.fromBits(app.sjcl.codec.utf8String.toBits("serviceworker request failed"));
+
   app.http = (method, url, headers, content, responseType) =>
     new Promise((resolve, reject) => {
       headers = headers || {};
@@ -353,6 +355,10 @@
             resolve();
           } else {
             if(responseType == "arraybuffer") {
+              if(app.cryptoService.uint8ArrayEquals(new Uint8Array(httpRequest.response), requestFailedBytes)) {
+                reject(false);
+                return
+              }
               if(httpRequest.response.byteLength == 0) {
                 resolve();
                 return;
@@ -434,15 +440,19 @@
 
     var requestsCurrentlyInFlight = 0;
 
-    var httpButAlwaysResolves = (method, url, headers, content, responseType) =>
+    var httpButAlwaysResolves = (method, url, headers, content, responseType, backgroundMode) =>
       new Promise((resolve, reject) => {
-        requestsCurrentlyInFlight += 1;
-        document.getElementById('progress-container').style.display = 'block';
-
+        if(!backgroundMode) {
+          requestsCurrentlyInFlight += 1;
+          document.getElementById('progress-container').style.display = 'block';
+        }
+        
         var resolveAndPopInFlight = (result) => {
-          requestsCurrentlyInFlight -= 1;
-          if(requestsCurrentlyInFlight == 0) {
-            document.getElementById('progress-container').style.display = 'none';
+          if(!backgroundMode) {
+            requestsCurrentlyInFlight -= 1;
+            if(requestsCurrentlyInFlight == 0) {
+              document.getElementById('progress-container').style.display = 'none';
+            }
           }
           resolve(result);
         };
@@ -459,10 +469,10 @@
       return !!window.localStorage[`${localStorageKeyPrefix}${id}`];
     };
 
-    this.get = (id) => {
+    this.get = (id, backgroundMode) => {
       return Promise.all([
-        httpButAlwaysResolves('GET', `${storageBaseUrl}/${id}`, {'Accept': 'application/octet-stream'}, null, "arraybuffer"),
-        httpButAlwaysResolves('GET', `${s3InterceptorSymbol}${id}`, {'Accept': 'application/octet-stream'}, null, "arraybuffer")
+        httpButAlwaysResolves('GET', `${storageBaseUrl}/${id}`, {'Accept': 'application/octet-stream'}, null, "arraybuffer", backgroundMode),
+        httpButAlwaysResolves('GET', `${s3InterceptorSymbol}${id}`, {'Accept': 'application/octet-stream'}, null, "arraybuffer", backgroundMode)
       ]).then((results) => {
         return new Promise((resolve, reject) => {
           const localCopyCiphertext64 = window.localStorage[`${localStorageKeyPrefix}${id}`];
@@ -506,22 +516,24 @@
           }
 
           if(allCopies.filter(x => x.lastUpdated < latestCopy.lastUpdated).length > 0 || allCopies.length < 3) {
-            this.put(id, latestCopy).then(() => resolve(latestCopy));
+            this.put(id, latestCopy, backgroundMode).then(() => resolve(latestCopy));
           } else {
             resolve(latestCopy);
           }
         });
       });
     };
-    this.put = (id, content) => {
+
+    this.put = (id, content, backgroundMode) => {
       content.lastUpdated = new Date().getTime();
       const localCopyCiphertextBytes = cryptoService.encrypt(JSON.stringify(content));
       window.localStorage[`${localStorageKeyPrefix}${id}`] = sjcl.codec.base64.fromBits(sjcl.codec.bytes.toBits(localCopyCiphertextBytes));
       return Promise.all([
-        httpButAlwaysResolves('PUT', `${storageBaseUrl}/${id}`, {'Content-Type': 'application/octet-stream'}, content, "arraybuffer"),
-        httpButAlwaysResolves('PUT', `${s3InterceptorSymbol}${id}`, {'Content-Type': 'application/octet-stream'}, content, "arraybuffer")
+        httpButAlwaysResolves('PUT', `${storageBaseUrl}/${id}`, {'Content-Type': 'application/octet-stream'}, content, "arraybuffer", backgroundMode),
+        httpButAlwaysResolves('PUT', `${s3InterceptorSymbol}${id}`, {'Content-Type': 'application/octet-stream'}, content, "arraybuffer", backgroundMode)
       ]).then(() => content)
     };
+
     this.delete = (id) => {
       window.localStorage.removeItem(`${localStorageKeyPrefix}${id}`);
       return Promise.all([
@@ -800,7 +812,7 @@
       if(filenames.length) {
         const totalToPopulate = filenames.length;
         this.currentlyInFlight = 0;
-        document.getElementById("synced-status-indicator").className = "saved-status-indicator saving";
+        document.getElementById("synced-status-indicator").className = "synced-status-indicator saving";
 
         this.toPopulate = filenames;
         let pollForNextCachePopulation;
@@ -811,7 +823,7 @@
             this.currentlyInFlight ++;
             const id = this.toPopulate.pop();
             if(id) {
-              storageService.get(id).then(
+              storageService.get(id, true).then(
                 () => {
                   this.currentlyInFlight --;
                 }, 
@@ -827,7 +839,7 @@
             setTimeout(pollForNextCachePopulation, 100);
           } else {
             document.getElementById("synced-status-indicator").textContent = "Synced";
-            document.getElementById("synced-status-indicator").className = "saved-status-indicator saved";
+            document.getElementById("synced-status-indicator").className = "synced-status-indicator saved";
           }
         };
 
