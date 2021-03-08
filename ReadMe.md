@@ -21,7 +21,7 @@ docker run \
   -e SEQUENTIALREAD_PWM_BACKBLAZE_SECRET_ACCESS_KEY=EXAMPLEEXAMPLEEXAMPLEEXAMPLEKEY \
   -e SEQUENTIALREAD_PWM_BACKBLAZE_BUCKET_NAME=sequentialread-password-manager \
   -e SEQUENTIALREAD_PWM_BACKBLAZE_BUCKET_REGION=us-west-000 \
-  sequentialread/sequentialread-password-manager:2.0.6
+  sequentialread/sequentialread-password-manager:2.0.8
 ```
 
 See "Hosting it yourself" for more information.

@@ -24,7 +24,7 @@
 </head>
 <body>
   <div class="header">
-    <h3>Sequential Read Password Manager <span style="font-size: 0.65em; font-weight: normal;">v2.0.6</span></h3>
+    <h3>Sequential Read Password Manager <span style="font-size: 0.65em; font-weight: normal;">v2.0.8</span></h3>
     <div style="float:right; padding-right:20px;">
       <button class="hamburger-button"></button>
       <a class="nav-link-responsive" href="https://git.sequentialread.com/forest/sequentialread-password-manager">source code and documentation</a>

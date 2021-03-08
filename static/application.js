@@ -1002,8 +1002,8 @@
     http('GET', 'version', {}, null)
     .then(
       (currentVersion) => {
-        var lastVersion = window.localStorage[`${localStorageKeyPrefix}version`];
-        if(currentVersion && currentVersion != lastVersion) {
+        var lastVersion = window.localStorage[`${localStorageKeyPrefix}version`]; 
+        if(currentVersion && currentVersion != "serviceworker request failed" && currentVersion != lastVersion) {
           
           console.log(`reloading service worker due to new app version: ${currentVersion}`)
           window.localStorage[`${localStorageKeyPrefix}version`] = currentVersion;
