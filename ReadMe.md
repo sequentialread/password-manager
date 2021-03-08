@@ -28,12 +28,12 @@ See "Hosting it yourself" for more information.
 
 ## Security
 
-First and foremost, the application is easy to audit since it has minimal dependencies: 
+First and foremost, the application should be easy to audit since it has minimal dependencies: 
 
- - sjcl.js, AKA the Stanford JavaScript Crypto Library
+ - sjcl.js, AKA the [Stanford JavaScript Crypto Library](https://bitwiseshiftleft.github.io/sjcl/)
  - [MyEtherWallet/scrypt-wasm](https://github.com/MyEtherWallet/scrypt-wasm)
-   - This thing simply compiles the [scrypt hash function from the Rust standard library](https://docs.rs/rust-crypto/0.2.36/crypto/scrypt/index.html) into a Web Assembly binary.
- - [qntm/base32768](https://github.com/qntm/base32768), a boutique binary encoding which is used to package the Scrypt WASM binary into a [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers).
+   - This thing simply compiles the [scrypt hash function from the Rust standard library](https://docs.rs/rust-crypto/0.2.36/crypto/scrypt/index.html) into a [WebAssembly](https://webassembly.org/) binary that can be called from JavaScript.
+   - Yes I acknowledge that the process of compiling and using WASM makes the application harder to audit -- however, I thought it was worth it, the WASM scrypt implementation is ~100x faster than the JavaScript one, which either makes the passwords 100x harder to crack, or makes the key derivation process 100x faster, depending on how you look at it.
 
 You can re-produce the sjcl.js I am using like so: 
 
@@ -42,11 +42,25 @@ git clone https://github.com/bitwiseshiftleft/sjcl
 cd sjcl
 ./configure --without-all --with-codecBytes --with-sha256 --with-codecBase64 --with-codecHex --with-codecString --with-cbc  --with-hmac 
 make
+cat core_closure.js
 ```
 
-There is nothing that pulls in dependencies, no bundling step, etc. There is only one place where `XMLHttpRequest` is created, and the request body is encrypted in the same place. Same goes for `localStorage`.
+You can compile the wasm & associated interface helper scripts yourself by running the `wasm_build.sh` script in the `wasm_build` folder.
+
+```
+cd wasm_build
+
+./wasm_build.sh
+```
+
+There is nothing that pulls in dependencies, no bundling step, etc. There is only one place in the app where `XMLHttpRequest` is created, and the request body is encrypted right then and there. Same goes for `localStorage`.
 
 It was designed that way to strengthen the claim that "everything it sends out from the javascript VM is AES encrypted with the key you chose".
+
+In the past I had used the default symmetric encryption standard from the `sjcl` "convenience" package. However, for version 2 of the password manager, I replaced it with my own ["generate a random initialization vector, encrypt, then HMAC" implementation](https://git.sequentialread.com/forest/sequentialread-password-manager/src/b970d6abffdadfc221118d1b46e8bc0fcb4eed89/static/application.js#L230). I had two reasons for doing this: 
+
+  1. I wanted to take control of the key derivation step and do it myself with scrypt.
+  1. I wanted to make a symmetric encryption standard/format that was more easily portable between sjcl and other programming languages / standard libraries [like Golang](https://git.sequentialread.com/forest/rootsystem/src/a4034f9cb08ac9d5981365f7d1dbd5e114e1895f/objectStorage/e2eeObjectStorage.go#L121).
 
 ## High Avaliability by Design
 
