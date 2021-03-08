@@ -51,7 +51,7 @@
     sjcl.beware["CBC mode is dangerous because it doesn't protect message integrity."]();
   }
     
-  const SUPPORTED_VERSION = 3;
+  const SUPPORTED_VERSION = 2;
   const bytesInAUint32 = 4;
   const aesBlockSizeInBytes = 16;
   const sha256OutputSizeInBytes = 256/8;
@@ -196,7 +196,7 @@
       return this.entropizer;
     };
     
-    const decryptToBits = (serializedEncryptedBytes, keyBits, keyIdBits) => {
+    const decryptToBits = (serializedEncryptedBytes, keyBits) => {
     
       let encrypted;
       try {
@@ -209,7 +209,7 @@
       initializationVectorAndCiphertext.set(encrypted.initializationVector);
       initializationVectorAndCiphertext.set(encrypted.ciphertext, encrypted.initializationVector.length);
     
-      const hmac = new sjcl.misc.hmac(keyIdBits, sjcl.hash.sha256);
+      const hmac = new sjcl.misc.hmac(keyBits, sjcl.hash.sha256);
     
       hmac.update(sjcl.codec.bytes.toBits(initializationVectorAndCiphertext))
       const messageAuthenticationCode = sjcl.codec.bytes.fromBits(hmac.digest());
@@ -227,7 +227,7 @@
       );
     }
     
-    const encryptBits = (plaintextBits, keyBits, keyIdBits) => {
+    const encryptBits = (plaintextBits, keyBits) => {
     
       let initializationVector = new Uint8Array(aesBlockSizeInBytes);
       window.crypto.getRandomValues(initializationVector);
@@ -250,7 +250,7 @@
       initializationVectorAndCiphertext.set(initializationVector);
       initializationVectorAndCiphertext.set(ciphertextBytes, initializationVector.length);
     
-      const hmac = new sjcl.misc.hmac(keyIdBits, sjcl.hash.sha256);
+      const hmac = new sjcl.misc.hmac(keyBits, sjcl.hash.sha256);
       hmac.update(sjcl.codec.bytes.toBits(initializationVectorAndCiphertext))
       const messageAuthenticationCode = sjcl.codec.bytes.fromBits(hmac.digest());
     
