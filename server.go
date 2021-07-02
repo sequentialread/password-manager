@@ -17,8 +17,6 @@ import (
 	"strings"
 	"text/template"
 	"time"
-
-	"./godotenv"
 )
 
 var appPort = "8073"
@@ -169,7 +167,7 @@ func reloadStaticFiles() {
 }
 
 func main() {
-	godotenv.Load()
+	GoDotEnvLoad()
 
 	dataPath = filepath.Join(".", "data")
 	os.MkdirAll(dataPath, os.ModePerm)
